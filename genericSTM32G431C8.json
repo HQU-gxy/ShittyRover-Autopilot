@@ -1,0 +1,43 @@
+{
+  "build": {
+    "core": "stm32",
+    "cpu": "cortex-m4",
+    "extra_flags": "-DSTM32G4xx -DSTM32G431xx -DSTM32G4",
+    "f_cpu": "170000000L",
+    "mcu": "stm32g431c8u6",
+    "product_line": "STM32G431xx",
+    "variant": "STM32G4xx/G431C(6-8-B)U_G441CBU"
+  },
+  "debug": {
+    "jlink_device": "STM324031G8",
+    "openocd_target": "stm32g4x",
+    "svd_path": "STM32G431xx.svd"
+  },
+  "frameworks": [
+    "arduino",
+    "cmsis",
+    "mbed",
+    "libopencm3",
+    "stm32cube"
+  ],
+  "name": "STM32G431G8 (32k RAM. 128k Flash)",
+  "upload": {
+    "disable_flushing": false,
+    "maximum_ram_size": 32768,
+    "maximum_size": 131072,
+    "protocol": "stlink",
+    "protocols": [
+      "jlink",
+      "cmsis-dap",
+      "stlink",
+      "blackmagic",
+      "serial",
+      "dfu"
+    ],
+    "require_upload_port": true,
+    "use_1200bps_touch": false,
+    "wait_for_upload_port": false
+  },
+  "url": "http://www.st.com/content/st_com/en/products/microcontrollers/stm32-32-bit-arm-cortex-mcus/stm32f1-series/stm32f103/stm32f103c8.html",
+  "vendor": "Generic"
+}
