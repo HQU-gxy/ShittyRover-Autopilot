@@ -1,23 +1,21 @@
-/*
-  Ellipse drawing example
-  
-  This sketch does not use any fonts.
-*/
-#include<Arduino.h>
+
+#include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <SPI.h>
+#include <USBSerial.h>
 
-TFT_eSPI tft = TFT_eSPI();       // Invoke custom library
+TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
-void setup(void) {
+void setup(void)
+{
   tft.init();
   tft.setRotation(1);
   pinMode(PB4, OUTPUT);
   pinMode(PB5, OUTPUT);
-
+  SerialUSB.begin(115200);
 }
-void loop() {
-
+void loop()
+{
   tft.fillScreen(TFT_BLACK);
 
   // Draw some random filled ellipses
@@ -47,6 +45,3 @@ void loop() {
   digitalWrite(PB5, HIGH);
   delay(2000);
 }
-
-
-
