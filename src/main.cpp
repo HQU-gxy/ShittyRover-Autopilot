@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <BMI088.h>
+#include <STM32FreeRTOS.h>
 
 #include "Magnetometer.hpp"
 #include "config.h"
@@ -10,6 +11,59 @@ TFT_eSPI tft;
 
 Bmi088Accel accel(SPI, BMI088_ACCEL_CS);
 Bmi088Gyro gyro(SPI, BMI088_GYRO_CS);
+
+void app_main(void *)
+{
+  while (1)
+  {
+    static uint8_t cursor = 0;
+    /* read the accel */
+    accel.readSensor();
+    /* read the gyro */
+    gyro.readSensor();
+
+    // float magData[3];
+    // Magneto::getGauss(magData);
+
+    // auto magStr = String(magData[0]) + ", " + String(magData[1]) + ", " +
+    //               String(magData[2]);
+
+    // Serial2.print("Mag X, Y, Z: ");
+    // Serial2.println(magStr);
+    auto heading = Magneto::getHeading();
+    Serial2.println("Heading: " + String(heading));
+
+    tft.drawPixel(cursor, 40 + accel.getAccelX_mss() * 2, TFT_RED);
+    tft.drawPixel(cursor, 40 + accel.getAccelY_mss() * 2, TFT_GREEN);
+    tft.drawPixel(cursor, 40 + accel.getAccelZ_mss() * 2, TFT_CYAN);
+    cursor = cursor < 80 ? cursor + 1 : 0;
+    tft.drawFastVLine(cursor, 0, 80, TFT_BLACK);
+    delay(50);
+
+    // Show the heading on the TFT
+    tft.fillCircle(120, 40, 20, TFT_BLACK);
+    tft.drawCircle(120, 40, 20, TFT_ORANGE);
+    tft.drawLine(120, 40, 120 + 20 * cos(heading * DEG_TO_RAD), 40 - 20 * sin(heading * DEG_TO_RAD), TFT_WHITE);
+
+    if (Serial2.available())
+      if (Serial2.read() == 'c')
+      {
+        Magneto::CalibrationData magCal;
+        tft.fillScreen(TFT_BLACK);
+        tft.setCursor(0, 0);
+        Serial2.println("Calibrating the compass, please rotate the device in all directions");
+        tft.println("Calibrating the compass");
+        tft.println("Please rotate the device in all directions");
+        Magneto::runCalibration(&magCal, &tft);
+        Serial2.println("Calibration data: ");
+        Serial2.println(Magneto::getCalibrationDataString(&magCal));
+        Magneto::setCalibrationData(&magCal);
+        Serial2.println("Calibration done");
+        tft.println("Calibration done");
+        delay(1000);
+      }
+  }
+}
 
 void setup(void)
 {
@@ -55,55 +109,12 @@ void setup(void)
   pinMode(PB5, OUTPUT);
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 0);
+
+  osKernelInitialize();
+  osThreadNew(app_main, nullptr, nullptr);
+  osKernelStart();
+  while (1)
+    ;
 }
 
-void loop()
-{
-
-  static uint8_t cursor = 0;
-  /* read the accel */
-  accel.readSensor();
-  /* read the gyro */
-  gyro.readSensor();
-
-  // float magData[3];
-  // Magneto::getGauss(magData);
-
-  // auto magStr = String(magData[0]) + ", " + String(magData[1]) + ", " +
-  //               String(magData[2]);
-
-  // Serial2.print("Mag X, Y, Z: ");
-  // Serial2.println(magStr);
-  auto heading = Magneto::getHeading();
-  Serial2.println("Heading: " + String(heading));
-
-  tft.drawPixel(cursor, 40 + accel.getAccelX_mss() * 2, TFT_RED);
-  tft.drawPixel(cursor, 40 + accel.getAccelY_mss() * 2, TFT_GREEN);
-  tft.drawPixel(cursor, 40 + accel.getAccelZ_mss() * 2, TFT_CYAN);
-  cursor = cursor < 80 ? cursor + 1 : 0;
-  tft.drawFastVLine(cursor, 0, 80, TFT_BLACK);
-  delay(50);
-
-  // Show the heading on the TFT
-  tft.fillCircle(120, 40, 20, TFT_BLACK);
-  tft.drawCircle(120, 40, 20, TFT_ORANGE);
-  tft.drawLine(120, 40, 120 + 20 * cos(heading * DEG_TO_RAD), 40 - 20 * sin(heading * DEG_TO_RAD), TFT_WHITE);
-
-  if (Serial2.available())
-    if (Serial2.read() == 'c')
-    {
-      Magneto::CalibrationData magCal;
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0);
-      Serial2.println("Calibrating the compass, please rotate the device in all directions");
-      tft.println("Calibrating the compass");
-      tft.println("Please rotate the device in all directions");
-      Magneto::runCalibration(&magCal, &tft);
-      Serial2.println("Calibration data: ");
-      Serial2.println(Magneto::getCalibrationDataString(&magCal));
-      Magneto::setCalibrationData(&magCal);
-      Serial2.println("Calibration done");
-      tft.println("Calibration done");
-      delay(1000);
-    }
-}
+void loop() {}
