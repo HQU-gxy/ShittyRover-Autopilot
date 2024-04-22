@@ -31,6 +31,12 @@ namespace Magneto
         OVERSAMPLE_64,
     };
 
+    struct MagData{
+        int16_t x;
+        int16_t y;
+        int16_t z;
+    };
+
     struct CalibrationData
     {
         int16_t offsetX;
@@ -41,11 +47,11 @@ namespace Magneto
         float gainZ;
     };
 
-    bool begin(Mode m, DataRate odr, Range rng, OverSample osr);
+    bool begin(Mode m = MODE_CONTINUOUS, DataRate odr = DATARATE_100HZ, Range rng = RANGE_2GA, OverSample osr = OVERSAMPLE_512);
     void setCalibrationData(CalibrationData *calibration);
     void getCalibrationData(CalibrationData *calibration);
     // void runCalibration(CalibrationData *calibration);
-    void runCalibration(CalibrationData *calibration, TFT_eSPI *tft); // Show calibration data on TFT
+    void runCalibration(void *params); // Show calibration data on TFT
     inline String getCalibrationDataString(CalibrationData *calibration)
     {
         return "OffsetX: " + String(calibration->offsetX) + " OffsetY: " + String(calibration->offsetY) +
@@ -53,9 +59,6 @@ namespace Magneto
                " GainY: " + String(calibration->gainY) + " GainZ: " + String(calibration->gainZ);
     }
 
-    bool getRawData(int16_t *xyz);
-    bool getRawDataWithCal(int16_t *xyz);
-    bool getGauss(float *xyz);
     float getHeading();
 
 } // namespace Magneto

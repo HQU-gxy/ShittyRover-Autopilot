@@ -1,8 +1,11 @@
 #include <EEPROM.h>
+#include <STM32FreeRTOS.h>
 
 #include "CMSIS_DSP.h"
 #include "Magnetometer.hpp"
 #include "config.h"
+#include "Logger.hpp"
+#include "SensorCollector.hpp"
 
 namespace Magneto
 {
@@ -21,6 +24,9 @@ namespace Magneto
     constexpr uint8_t QMC5883_READ_TIMEOUT = 100;
 
     constexpr uint8_t QMC5883_CAL_ADDR = 0x69;
+
+    constexpr uint8_t AVR_SAMPLES_COUNT = 8;
+    static MagData collectedData[AVR_SAMPLES_COUNT]{MagData{0}};
 
     void writeRegister(uint8_t reg, uint8_t *val, uint8_t len = 1)
     {
@@ -50,6 +56,7 @@ namespace Magneto
             }
             return true;
         }
+        Logger::error("QMC5883 read timeout");
         return false;
     }
 
@@ -60,86 +67,46 @@ namespace Magneto
         return status & 0x01;
     }
 
-    bool begin(Mode m, DataRate odr, Range rng, OverSample osr)
+    bool readRawData(MagData *xyz)
     {
-        i2c1.begin();
-        uint8_t chipID;
-        readRegister(QMC5883_REG_CHIP_ID, &chipID);
-        if (chipID != 0xff) // It's always 0xff by normal
+        if (!dataReady())
+        { // No data ready
+            Logger::warn("QMC5883 data not ready");
             return false;
-
-        uint8_t cfgData = (osr << 6) | (rng << 4) | (odr << 2) | m;
-        writeRegister(QMC5883_REG_CONFIG1, &cfgData);
-
-        getCalibrationData(&calibration); // Load calibration data
-
-        auto startTime = millis();
-        uint8_t cfgRead;
-        while (millis() - startTime < QMC5883_INIT_TIMEOUT)
-        {
-            // Check if the configuration is written
-            readRegister(QMC5883_REG_CONFIG1, &cfgRead);
-            if (cfgRead == cfgData)
-            {
-                return true;
-            }
-            delay(10);
         }
-        return false;
-    }
-
-    bool getRawData(int16_t *xyz)
-    {
-        if (!dataReady()) // No data ready
-            return false;
 
         uint8_t data[6];
         if (!readRegister(QMC5883_REG_X_LSB, data, 6))
+        {
             return false;
+        }
 
         // Combine the bytes into 16-bit signed integers
-        for (uint8_t i = 0; i < 3; i++)
-        {
-            xyz[i] = (data[i * 2 + 1] << 8) | data[i * 2];
-        }
+        xyz->x = (data[1] << 8) | data[0];
+        xyz->y = (data[3] << 8) | data[2];
+        xyz->z = (data[5] << 8) | data[4];
 
         return true;
     }
 
-    bool getRawDataWithCal(int16_t *xyz)
+    bool readRawDataWithCal(MagData *xyz)
     {
-        int16_t data[3];
-        if (!getRawData(data))
+        MagData data;
+        if (!readRawData(&data))
             return false;
 
         int16_t offsets[] = {calibration.offsetX, calibration.offsetY, calibration.offsetZ};
         float32_t gains[] = {calibration.gainX, calibration.gainY, calibration.gainZ};
 
         float32_t temp[3];
-        for (uint8_t i = 0; i < 3; i++)
-        {
-            temp[i] = (data[i] - offsets[i]);
-        }
+        temp[0] = data.x - offsets[0];
+        temp[1] = data.y - offsets[1];
+        temp[2] = data.z - offsets[2];
+
         arm_mult_f32(temp, gains, temp, 3);
-        for (uint8_t i = 0; i < 3; i++)
-        {
-            xyz[i] = temp[i];
-        }
-
-        return true;
-    }
-
-    bool getGauss(float *xyz)
-    {
-        int16_t data[3];
-        if (!getRawDataWithCal(data))
-            return false;
-
-        constexpr float QMC5883_16BIT_SENSITIVITY = 12000.0f;
-
-        // This function will make the data in the range of -1 to 1
-        arm_q15_to_float(data, xyz, 3);
-        arm_scale_f32(xyz, 32768.0f / QMC5883_16BIT_SENSITIVITY, xyz, 3);
+        xyz->x = temp[0];
+        xyz->y = temp[1];
+        xyz->z = temp[2];
 
         return true;
     }
@@ -174,55 +141,146 @@ namespace Magneto
         }
     }
 
-    void runCalibration(CalibrationData *cal, TFT_eSPI *tft = nullptr)
+    void runCalibration(void *params)
     {
-        int16_t data[3];
-        int16_t min[3] = {INT16_MAX, INT16_MAX, INT16_MAX};
-        int16_t max[3] = {INT16_MIN, INT16_MIN, INT16_MIN};
+        MagData temp;
+        MagData minData, maxData;
 
-        // for (uint16_t i = 0; i < 1000; i++)
+        Logger::info("Compas calibration started");
+        auto tft = static_cast<TFT_eSPI *>(params);
+
         while (1)
         {
-            getRawData(data);
-            for (uint8_t j = 0; j < 3; j++)
-            {
-                if (data[j] < min[j])
-                    min[j] = data[j];
-                if (data[j] > max[j])
-                    max[j] = data[j];
-            }
+            readRawData(&temp);
+            if (temp.x > maxData.x)
+                maxData.x = temp.x;
+            if (temp.y > maxData.y)
+                maxData.y = temp.y;
+            if (temp.z > maxData.z)
+                maxData.z = temp.z;
+
+            if (temp.x < minData.x)
+                minData.x = temp.x;
+            if (temp.y < minData.y)
+                minData.y = temp.y;
+            if (temp.z < minData.z)
+                minData.z = temp.z;
+
             if (tft)
             {
                 tft->fillRect(0, 40, 160, 40, TFT_BLACK);
-                tft->drawString("Max X: " + String(max[0]) + " Min X: " + String(min[0]), 8, 40);
-                tft->drawString("Max Y: " + String(max[1]) + " Min Y: " + String(min[1]), 8, 50);
-                tft->drawString("Max Z: " + String(max[2]) + " Min Z: " + String(min[2]), 8, 60);
+                tft->drawString("Max X: " + String(maxData.x) + " Min X: " + String(minData.x), 8, 40);
+                tft->drawString("Max Y: " + String(maxData.y) + " Min Y: " + String(minData.y), 8, 50);
+                tft->drawString("Max Z: " + String(maxData.z) + " Min Z: " + String(minData.z), 8, 60);
             }
             if (Serial2.available() && Serial2.read() == 'e')
                 break;
-            delay(10);
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+        CalibrationData cal;
+        cal.offsetX = (maxData.x + minData.x) / 2;
+        cal.offsetY = (maxData.y + minData.y) / 2;
+        cal.offsetZ = (maxData.z + minData.z) / 2;
+
+        cal.gainX = 1.0f;
+        cal.gainY = static_cast<float>(maxData.y - minData.y) / static_cast<float>(maxData.x - minData.x);
+        cal.gainZ = static_cast<float>(maxData.z - minData.z) / static_cast<float>(maxData.x - minData.x);
+        setCalibrationData(&cal);
+        Logger::info("Compas calibration done");
+    }
+
+    void getAvrData(MagData *data)
+    {
+        float32_t temp[3]{0};
+        for (auto d : collectedData)
+        {
+            temp[0] += d.x;
+            temp[1] += d.y;
+            temp[2] += d.z;
         }
 
-        cal->offsetX = (max[0] + min[0]) / 2;
-        cal->offsetY = (max[1] + min[1]) / 2;
-        cal->offsetZ = (max[2] + min[2]) / 2;
+        arm_scale_f32(temp, 1.0f / AVR_SAMPLES_COUNT, temp, 3);
 
-        cal->gainX = 1.0f;
-        cal->gainY = static_cast<float>(max[1] - min[1]) / static_cast<float>(max[0] - min[0]);
-        cal->gainZ = static_cast<float>(max[2] - min[2]) / static_cast<float>(max[0] - min[0]);
+        data->x = temp[0];
+        data->y = temp[1];
+        data->z = temp[2];
+    }
+
+    bool getGauss(float *xyz)
+    {
+        MagData data;
+        getAvrData(&data);
+
+        constexpr float QMC5883_16BIT_SENSITIVITY = 12000.0f;
+
+        xyz[0] = data.x;
+        xyz[1] = data.y;
+        xyz[2] = data.z;
+
+        arm_scale_f32(xyz, 1.0f / QMC5883_16BIT_SENSITIVITY, xyz, 3);
+
+        return true;
     }
 
     float getHeading()
     {
-        int16_t xyz[3];
-        getRawDataWithCal(xyz);
+        MagData data;
+        getAvrData(&data);
+
         float32_t heading;
-        heading = atan2(xyz[1], xyz[0]); // This shitty version of CMSIS-DSP doesn't have atan2f
+        heading = atan2(data.y, data.x); // This shitty version of CMSIS-DSP doesn't have atan2f
         if (heading < 0)
             heading += 2 * PI;
 
         arm_scale_f32(&heading, RAD_TO_DEG, &heading, 1);
         return heading;
+    }
+
+    void readSensor()
+    {
+        if (!dataReady())
+            return;
+
+        // A shift register would be useful here
+        for (size_t i = 0; i < AVR_SAMPLES_COUNT - 1; i++)
+        {
+            collectedData[i] = collectedData[i + 1];
+        }
+        readRawDataWithCal(&collectedData[AVR_SAMPLES_COUNT - 1]);
+    }
+
+    bool begin(Mode m, DataRate odr, Range rng, OverSample osr)
+    {
+        i2c1.begin();
+        uint8_t chipID;
+        readRegister(QMC5883_REG_CHIP_ID, &chipID);
+        if (chipID != 0xff)
+        { // It's always 0xff by normal
+            Logger::error("QMC5883 not found");
+            return false;
+        }
+
+        uint8_t cfgData = (osr << 6) | (rng << 4) | (odr << 2) | m;
+        writeRegister(QMC5883_REG_CONFIG1, &cfgData);
+
+        getCalibrationData(&calibration); // Load calibration data
+
+        auto startTime = millis();
+        uint8_t cfgRead;
+        while (millis() - startTime < QMC5883_INIT_TIMEOUT)
+        {
+            // Check if the configuration is written
+            readRegister(QMC5883_REG_CONFIG1, &cfgRead);
+            if (cfgRead == cfgData)
+            {
+                Logger::info("QMC5883 initialized");
+                SensorCollector::registerSensorCb("Magneto", readSensor);
+                return true;
+            }
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+        Logger::error("QMC5883 configure timeout");
+        return false;
     }
 
 } // namespace Magneto

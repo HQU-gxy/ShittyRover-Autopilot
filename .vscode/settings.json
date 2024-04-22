@@ -1,6 +1,16 @@
 {
     "files.associations": {
         "tft_espi_esp8266.c": "cpp",
-        "cstdio": "cpp"
+        "cstdio": "cpp",
+        "freertos.h": "c",
+        "queue.h": "c",
+        "array": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "task.h": "c"
     }
 }
