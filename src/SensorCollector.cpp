@@ -1,12 +1,12 @@
 #include "SensorCollector.hpp"
 #include <STM32FreeRTOS.h>
 #include <timers.h>
-#include "Logger.hpp"
+#include <ulog.h>
 
 namespace SensorCollector
 {
     constexpr uint8_t MAX_SENSOR_COUNT = 10;
-    static void (*sensorCallbacks[MAX_SENSOR_COUNT])(void){nullptr};
+    static callback_function_t sensorCallbacks[MAX_SENSOR_COUNT]{nullptr};
     static uint8_t sensorCount = 0;
 
     void collectData(TimerHandle_t)
@@ -23,7 +23,7 @@ namespace SensorCollector
         xTimerStart(sensor_handle, 0);
     }
 
-    void registerSensorCb(String name, void (*readFunc)(void))
+    void registerSensorCb(String name, callback_function_t readFunc)
     {
         if (sensorCount < MAX_SENSOR_COUNT)
         {
@@ -31,7 +31,7 @@ namespace SensorCollector
         }
         else
         {
-            Logger::error("Unable to register " + name + ", max sensor count reached");
+            ULOG_ERROR(("Unable to register " + name + ", max sensor count reached").c_str());
         }
     }
 } // namespace sensors

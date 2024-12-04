@@ -5,6 +5,6 @@
 namespace SensorCollector
 {
     void begin();
-    void registerSensorCb(String name, void(readFunc)(void));
+    void registerSensorCb(String name, callback_function_t readFunc);
 
 } // namespace SensorCollector

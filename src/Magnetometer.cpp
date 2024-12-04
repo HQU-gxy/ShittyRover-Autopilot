@@ -1,15 +1,15 @@
 #include <EEPROM.h>
 #include <STM32FreeRTOS.h>
+#include <ulog.h>
 
 #include "CMSIS_DSP.h"
 #include "Magnetometer.hpp"
 #include "config.h"
-#include "Logger.hpp"
 #include "SensorCollector.hpp"
 
 namespace Magneto
 {
-    static TwoWire i2c1(I2C1_SDA, I2C1_SCL);
+    static TwoWire i2c1(I2C1_SDA_PIN, I2C1_SCL_PIN);
     static CalibrationData calibration;
 
     constexpr uint8_t QMC5883_ADDR = 0x0D;
@@ -56,7 +56,7 @@ namespace Magneto
             }
             return true;
         }
-        Logger::error("QMC5883 read timeout");
+        ULOG_ERROR("QMC5883 read timeout");
         return false;
     }
 
@@ -71,7 +71,7 @@ namespace Magneto
     {
         if (!dataReady())
         { // No data ready
-            Logger::warn("QMC5883 data not ready");
+            ULOG_WARNING("QMC5883 data not ready");
             return false;
         }
 
@@ -146,7 +146,7 @@ namespace Magneto
         MagData temp;
         MagData minData, maxData;
 
-        Logger::info("Compas calibration started");
+        ULOG_INFO("Compas calibration started");
         auto tft = static_cast<TFT_eSPI *>(params);
 
         while (1)
@@ -186,7 +186,7 @@ namespace Magneto
         cal.gainY = static_cast<float>(maxData.y - minData.y) / static_cast<float>(maxData.x - minData.x);
         cal.gainZ = static_cast<float>(maxData.z - minData.z) / static_cast<float>(maxData.x - minData.x);
         setCalibrationData(&cal);
-        Logger::info("Compas calibration done");
+        ULOG_INFO("Compas calibration done");
     }
 
     void getAvrData(MagData *data)
@@ -256,7 +256,7 @@ namespace Magneto
         readRegister(QMC5883_REG_CHIP_ID, &chipID);
         if (chipID != 0xff)
         { // It's always 0xff by normal
-            Logger::error("QMC5883 not found");
+            ULOG_ERROR("QMC5883 not found");
             return false;
         }
 
@@ -273,13 +273,13 @@ namespace Magneto
             readRegister(QMC5883_REG_CONFIG1, &cfgRead);
             if (cfgRead == cfgData)
             {
-                Logger::info("QMC5883 initialized");
+                ULOG_INFO("QMC5883 initialized");
                 SensorCollector::registerSensorCb("Magneto", readSensor);
                 return true;
             }
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
-        Logger::error("QMC5883 configure timeout");
+        ULOG_ERROR("QMC5883 configure timeout");
         return false;
     }
 

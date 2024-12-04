@@ -4,15 +4,14 @@
 #include <BMI088.h>
 #include <STM32FreeRTOS.h>
 #include <CMSIS_DSP.h>
+#include <ulog.h>
 
-#include "Logger.hpp"
 #include "SensorCollector.hpp"
 #include "Magnetometer.hpp"
 #include "IMU.hpp"
 #include "config.h"
 
 TFT_eSPI tft;
-
 void app_main(void *)
 {
   while (1)
@@ -20,7 +19,6 @@ void app_main(void *)
     static uint8_t cursor = 0;
 
     auto heading = Magneto::getHeading();
-    // Logger::debug(("Heading: " + String(heading)));
 
     IMU::IMUData imuData;
     IMU::getData(&imuData);
@@ -54,20 +52,27 @@ void app_main(void *)
 
 void setup(void)
 {
-  Logger::begin();
+  Serial2.setTx(UART2_TX_PIN);
+  Serial2.setRx(UART2_RX_PIN);
+  Serial2.begin(115200);
+
+  ulog_init();
+  ulog_subscribe([](ulog_level_t severity, char *msg)
+                 { Serial2.printf("%d [%s]: %s\n", millis(), ulog_level_name(severity), msg); }, ULOG_DEBUG_LEVEL);
+
 
   tft.init();
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK);
 
-  Logger::info("I'm fucked up!");
-  Logger::info("Checking the peripherals: ");
+  ULOG_INFO("I'm fucked up!");
+  ULOG_INFO("Checking the peripherals: ");
 
   tft.print("Checking the peripherals: ");
 
   if (!IMU::begin())
   {
-    Logger::error("IMU Initialization Error");
+    ULOG_ERROR("IMU Initialization Error");
     tft.printf("IMU Initialization Error");
     while (1)
       ;
@@ -75,7 +80,7 @@ void setup(void)
 
   if (!Magneto::begin())
   {
-    Logger::error("Compass Initialization Error");
+    ULOG_ERROR("Compass Initialization Error");
     tft.printf("Compass Initialization Error");
     while (1)
       ;

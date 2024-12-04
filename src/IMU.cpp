@@ -3,16 +3,16 @@
 #include <CMSIS_DSP.h>
 #include <STM32FreeRTOS.h>
 #include <timers.h>
+#include <ulog.h>
 
 #include "IMU.hpp"
 #include "config.h"
-#include "Logger.hpp"
 #include "SensorCollector.hpp"
 
 namespace IMU
 {
-    static Bmi088Accel accel(SPI, BMI088_ACCEL_CS);
-    static Bmi088Gyro gyro(SPI, BMI088_GYRO_CS);
+    static Bmi088Accel accel(SPI, ACCEL_CS_PIN);
+    static Bmi088Gyro gyro(SPI, GYRO_CS_PIN);
 
     constexpr uint8_t AVR_SAMPLES_COUNT = 8;
     IMUData collectedData[AVR_SAMPLES_COUNT]{IMUData{0}};
@@ -42,21 +42,21 @@ namespace IMU
     {
         if (accel.begin() < 0)
         {
-            Logger::error("Accel initialization failed");
+            ULOG_ERROR("Accel initialization failed");
             return false;
         }
         accel.setRange(Bmi088Accel::RANGE_6G);
         accel.setOdr(Bmi088Accel::ODR_1600HZ_BW_145HZ);
-        Logger::info("Accel initialized");
+        ULOG_INFO("Accel initialized");
 
         if (gyro.begin() < 0)
         {
-            Logger::error("Gyro initialization failed");
+            ULOG_ERROR("Gyro initialization failed");
             return false;
         }
         gyro.setRange(Bmi088Gyro::RANGE_500DPS);
         gyro.setOdr(Bmi088Gyro::ODR_1000HZ_BW_116HZ);
-        Logger::info("Gyro initialized");
+        ULOG_INFO("Gyro initialized");
 
         SensorCollector::registerSensorCb("IMU", readSensors);
         return true;
