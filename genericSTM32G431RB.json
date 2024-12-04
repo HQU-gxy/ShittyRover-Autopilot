@@ -4,12 +4,12 @@
     "cpu": "cortex-m4",
     "extra_flags": "-DSTM32G4xx -DSTM32G431xx -DSTM32G4",
     "f_cpu": "170000000L",
-    "mcu": "stm32g431c8u6",
+    "mcu": "stm32g431rbt6",
     "product_line": "STM32G431xx",
-    "variant": "STM32G4xx/G431C(6-8-B)U_G441CBU"
+    "variant": "STM32G4xx/G431R(6-8-B)(I-T)_G441RB(I-T)"
   },
   "debug": {
-    "jlink_device": "STM324031G8",
+    "jlink_device": "STM32G431RB",
     "openocd_target": "stm32g4x",
     "svd_path": "STM32G431xx.svd"
   },
@@ -20,7 +20,7 @@
     "libopencm3",
     "stm32cube"
   ],
-  "name": "STM32G431G8 (32k RAM. 128k Flash)",
+  "name": "STM32G431RB (32k RAM. 128k Flash)",
   "upload": {
     "disable_flushing": false,
     "maximum_ram_size": 32768,
