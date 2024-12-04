@@ -1,4 +1,4 @@
-#include "SensorCollector.hpp"
+#include "SensorCollector.h"
 #include <STM32FreeRTOS.h>
 #include <timers.h>
 #include <ulog.h>

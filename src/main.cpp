@@ -6,9 +6,9 @@
 #include <CMSIS_DSP.h>
 #include <ulog.h>
 
-#include "SensorCollector.hpp"
-#include "Magnetometer.hpp"
-#include "IMU.hpp"
+#include "SensorCollector.h"
+#include "Magnetometer.h"
+#include "IMU.h"
 #include "config.h"
 
 TFT_eSPI tft;

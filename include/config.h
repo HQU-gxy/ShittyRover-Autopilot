@@ -3,27 +3,49 @@
 #include <Arduino.h>
 
 // LED pins
-constexpr uint8_t LED1 = PB4;
-constexpr uint8_t LED2 = PB5;
+constexpr uint8_t LED1_PIN = PC2;
+constexpr uint8_t LED2_PIN = PC3;
 
 // IMU pins
-constexpr uint8_t BMI088_ACCEL_CS = PB1;
-constexpr uint8_t BMI088_GYRO_CS = PB0;
-constexpr uint8_t SPI1_SCK = PA5;
-constexpr uint8_t SPI1_MISO = PA6;
-constexpr uint8_t SPI1_MOSI = PA7;
+constexpr uint8_t ACCEL_CS_PIN = PB1;
+constexpr uint8_t GYRO_CS_PIN = PB0;
+constexpr uint8_t SPI1_SCK_PIN = PA5;
+constexpr uint8_t SPI1_MISO_PIN = PA6;
+constexpr uint8_t SPI1_MOSI_PIN = PA7;
 
 // Compass pins
-constexpr uint8_t I2C1_SDA = PB9;
-constexpr uint8_t I2C1_SCL = PA15;
+constexpr uint8_t I2C1_SDA_PIN = PB9;
+constexpr uint8_t I2C1_SCL_PIN = PA15;
 
 // Compass magnetic declination
 constexpr float MAGNETIC_DECLINATION = -(4.0 + (38.0 / 60.0)) / (180 / PI);
 
 // UART pins
-constexpr uint8_t UART1_TX = PB7;
-constexpr uint8_t UART1_RX = PB6;
-constexpr uint8_t UART2_TX = PA2;
-constexpr uint8_t UART2_RX = PA3;
-constexpr uint8_t UART3_TX = PB10;
-constexpr uint8_t UART3_RX = PB11;
+// Reserve for future peripherals
+constexpr uint8_t UART1_TX_PIN = PB7;
+constexpr uint8_t UART1_RX_PIN = PB6;
+// For debugging
+constexpr uint8_t UART2_TX_PIN = PA2;
+constexpr uint8_t UART2_RX_PIN = PA3;
+// For uplink
+constexpr uint8_t UART3_TX_PIN = PB10;
+constexpr uint8_t UART3_RX_PIN = PB11;
+
+// Power monitor pins
+constexpr uint8_t ISENS_PIN = PA0;
+constexpr uint8_t VSENS_PIN = PA1;
+
+// Motor pins
+constexpr uint8_t MOTOR1_EN_PIN = PB4;
+constexpr uint8_t MOTOR1_IN1_PIN = PC11;
+constexpr uint8_t MOTOR1_IN2_PIN = PC12;
+constexpr uint8_t MOTOR1_ENC_A_PIN = PC1;
+constexpr uint8_t MOTOR1_ENC_B_PIN = PC0;
+#define MOTOR1_ENC_TIMER TIM1
+
+constexpr uint8_t MOTOR2_EN_PIN = PB5;
+constexpr uint8_t MOTOR2_IN1_PIN = PD2;
+constexpr uint8_t MOTOR2_IN2_PIN = PB3;
+constexpr uint8_t MOTOR2_ENC_A_PIN = PC7;
+constexpr uint8_t MOTOR2_ENC_B_PIN = PC6;
+#define MOTOR2_ENC_TIMER TIM3

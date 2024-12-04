@@ -5,9 +5,9 @@
 #include <timers.h>
 #include <ulog.h>
 
-#include "IMU.hpp"
+#include "IMU.h"
 #include "config.h"
-#include "SensorCollector.hpp"
+#include "SensorCollector.h"
 
 namespace IMU
 {

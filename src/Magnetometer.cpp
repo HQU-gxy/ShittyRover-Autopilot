@@ -3,9 +3,9 @@
 #include <ulog.h>
 
 #include "CMSIS_DSP.h"
-#include "Magnetometer.hpp"
+#include "Magnetometer.h"
 #include "config.h"
-#include "SensorCollector.hpp"
+#include "SensorCollector.h"
 
 namespace Magneto
 {
