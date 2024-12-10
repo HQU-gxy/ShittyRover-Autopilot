@@ -5,6 +5,20 @@
 #include "Motor.h"
 #include "config.h"
 
+void calcSpeed(TimerHandle_t shit)
+{
+  auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
+  if (!motor)
+  {
+    ULOG_ERROR("Measure Speed is called without a Motor pointer passed in");
+    return;
+  }
+
+  auto currentCounter = LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance);
+  motor->freqMeasured = currentCounter / Motor::MEASURE_SPEED_PERIOD;
+  LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
+}
+
 void fuckPID(TimerHandle_t shit)
 {
 
@@ -81,10 +95,12 @@ Motor::Motor(uint8_t in1_pin,
   LL_TIM_ENCODER_Init(encoder_timer, &encInitStruct);
   LL_TIM_CC_EnableChannel(encoder_timer, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH2);
   LL_TIM_EnableCounter(encoder_timer);
+  LL_TIM_SetCounter(encoder_timer, 0);
 
-  
-  auto PIDTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
-  xTimerStart(PIDTimer, 0);
+  auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
+  auto speedMeasurementTimer = xTimerCreate("Speed Measuring", pdMS_TO_TICKS(MEASURE_SPEED_PERIOD), pdTRUE, static_cast<void *>(this), calcSpeed);
+
+  xTimerStart(pidTimer, 0);
   ULOG_DEBUG("PID Timer started");
 }
 
@@ -105,6 +121,25 @@ void Motor::setSpeed(float speed)
   {
     targetFreq = 0;
   }
+}
+
+void Motor::beep(uint16_t f, uint16_t t)
+{
+  analogWrite(enablePin, MCPWM_BEEP_DC * 255 / 100);
+
+  auto startTime = millis();
+
+  uint16_t halfPeriod = 1e6 / (2 * f); // In μs
+
+  while (millis() - startTime < t)
+  {
+    setDirection(0);
+    delayMicroseconds(halfPeriod);
+    setDirection(1);
+    delayMicroseconds(halfPeriod);
+  }
+
+  stop();
 }
 
 
