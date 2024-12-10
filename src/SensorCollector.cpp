@@ -6,6 +6,7 @@
 namespace SensorCollector
 {
     constexpr uint8_t MAX_SENSOR_COUNT = 10;
+    constexpr uint8_t SENSOR_READ_PERIOD = 10; // 10ms
     static callback_function_t sensorCallbacks[MAX_SENSOR_COUNT]{nullptr};
     static uint8_t sensorCount = 0;
 
@@ -19,7 +20,7 @@ namespace SensorCollector
 
     void begin()
     {
-        auto sensor_handle = xTimerCreate("Sensor Read", 5, pdTRUE, nullptr, collectData);
+        auto sensor_handle = xTimerCreate("Sensor Read", SENSOR_READ_PERIOD, pdTRUE, nullptr, collectData);
         xTimerStart(sensor_handle, 0);
     }
 

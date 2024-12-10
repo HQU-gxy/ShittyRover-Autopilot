@@ -6,6 +6,11 @@
 constexpr uint8_t LED1_PIN = PC2;
 constexpr uint8_t LED2_PIN = PC3;
 
+// Button pins
+constexpr uint8_t BUTTON1_PIN = PA12;
+constexpr uint8_t BUTTON2_PIN = PA11;
+constexpr uint8_t BUTTON3_PIN = PA10;
+
 // IMU pins
 constexpr uint8_t ACCEL_CS_PIN = PB1;
 constexpr uint8_t GYRO_CS_PIN = PB0;
@@ -49,3 +54,5 @@ constexpr uint8_t MOTOR2_IN2_PIN = PB3;
 constexpr uint8_t MOTOR2_ENC_A_PIN = PC7;
 constexpr uint8_t MOTOR2_ENC_B_PIN = PC6;
 #define MOTOR2_ENC_TIMER TIM3
+
+constexpr uint16_t MCPWM_BEEP_DC = 20;

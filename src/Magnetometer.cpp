@@ -10,7 +10,7 @@
 namespace Magneto
 {
     static TwoWire i2c1(I2C1_SDA_PIN, I2C1_SCL_PIN);
-    static CalibrationData calibration;
+    static Calibration calibration;
 
     constexpr uint8_t QMC5883_ADDR = 0x0D;
     constexpr uint8_t QMC5883_REG_X_LSB = 0x00;
@@ -26,7 +26,7 @@ namespace Magneto
     constexpr uint8_t QMC5883_CAL_ADDR = 0x69;
 
     constexpr uint8_t AVR_SAMPLES_COUNT = 8;
-    static MagData collectedData[AVR_SAMPLES_COUNT]{MagData{0}};
+    static MagData collectedData[AVR_SAMPLES_COUNT]{MagData{0}}; // Raw data buffer
 
     void writeRegister(uint8_t reg, uint8_t *val, uint8_t len = 1)
     {
@@ -67,43 +67,61 @@ namespace Magneto
         return status & 0x01;
     }
 
-    bool readRawData(MagData *xyz)
+    void readSensor()
     {
         if (!dataReady())
-        { // No data ready
+        {
             ULOG_WARNING("QMC5883 data not ready");
-            return false;
+            return;
         }
 
         uint8_t data[6];
         if (!readRegister(QMC5883_REG_X_LSB, data, 6))
         {
-            return false;
+            ULOG_ERROR("QMC5883 read failed");
+            return;
+        }
+
+        // A shift register would be useful here
+        for (size_t i = 0; i < AVR_SAMPLES_COUNT - 1; i++)
+        {
+            collectedData[i] = collectedData[i + 1];
         }
 
         // Combine the bytes into 16-bit signed integers
-        xyz->x = (data[1] << 8) | data[0];
-        xyz->y = (data[3] << 8) | data[2];
-        xyz->z = (data[5] << 8) | data[4];
-
-        return true;
+        collectedData[AVR_SAMPLES_COUNT - 1].x = (data[1] << 8) | data[0];
+        collectedData[AVR_SAMPLES_COUNT - 1].y = (data[3] << 8) | data[2];
+        collectedData[AVR_SAMPLES_COUNT - 1].z = (data[5] << 8) | data[4];
     }
 
-    bool readRawDataWithCal(MagData *xyz)
+    void getAvrRawData(MagData *data)
     {
-        MagData data;
-        if (!readRawData(&data))
-            return false;
+        float32_t temp[3]{0};
+        for (auto d : collectedData)
+        {
+            temp[0] += d.x;
+            temp[1] += d.y;
+            temp[2] += d.z;
+        }
 
-        int16_t offsets[] = {calibration.offsetX, calibration.offsetY, calibration.offsetZ};
-        float32_t gains[] = {calibration.gainX, calibration.gainY, calibration.gainZ};
+        arm_scale_f32(temp, 1.0f / AVR_SAMPLES_COUNT, temp, 3);
+        data->x = temp[0];
+        data->y = temp[1];
+        data->z = temp[2];
+    }
 
-        float32_t temp[3];
-        temp[0] = data.x - offsets[0];
-        temp[1] = data.y - offsets[1];
-        temp[2] = data.z - offsets[2];
+    bool getAvrRawDataWithCal(MagData *xyz)
+    {
+        int16_t data[3];
+        getAvrRawData(reinterpret_cast<MagData *>(data));
 
-        arm_mult_f32(temp, gains, temp, 3);
+        arm_sub_q15(data, calibration.offset, data, 3);
+        float32_t temp[3]{
+            data[0],
+            data[1],
+            data[2],
+        };
+        arm_mult_f32(temp, calibration.gain, temp, 3);
         xyz->x = temp[0];
         xyz->y = temp[1];
         xyz->z = temp[2];
@@ -111,10 +129,10 @@ namespace Magneto
         return true;
     }
 
-    void setCalibrationData(CalibrationData *cal)
+    void setCalibration(Calibration *cal)
     {
         eeprom_buffer_fill();
-        for (uint8_t i = 0; i < sizeof(CalibrationData); i++)
+        for (uint8_t i = 0; i < sizeof(Calibration); i++)
         {
             eeprom_buffered_write_byte(QMC5883_CAL_ADDR + i, reinterpret_cast<uint8_t *>(cal)[i]);
         }
@@ -123,7 +141,7 @@ namespace Magneto
         memcpy(&calibration, cal, sizeof(cal)); // Apply the calibration data
     }
 
-    void getCalibrationData(CalibrationData *cal)
+    void getCalibration(Calibration *cal)
     {
         eeprom_buffer_fill();
         // cal->offsetX = eeprom_buffered_read_byte(QMC5883_CAL_ADDR) | (eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 1) << 8);
@@ -135,7 +153,7 @@ namespace Magneto
         // cal->offsetZ = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 6) | (eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 7) << 8);
         // cal->gainZ = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 8);
 
-        for (uint8_t i = 0; i < sizeof(CalibrationData); i++)
+        for (uint8_t i = 0; i < sizeof(Calibration); i++)
         {
             reinterpret_cast<uint8_t *>(cal)[i] = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + i);
         }
@@ -151,7 +169,7 @@ namespace Magneto
 
         while (1)
         {
-            readRawData(&temp);
+            getAvrRawData(&temp);
             if (temp.x > maxData.x)
                 maxData.x = temp.x;
             if (temp.y > maxData.y)
@@ -177,39 +195,22 @@ namespace Magneto
                 break;
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
-        CalibrationData cal;
-        cal.offsetX = (maxData.x + minData.x) / 2;
-        cal.offsetY = (maxData.y + minData.y) / 2;
-        cal.offsetZ = (maxData.z + minData.z) / 2;
+        Calibration cal;
+        cal.offset[0] = (maxData.x + minData.x) / 2;
+        cal.offset[1] = (maxData.y + minData.y) / 2;
+        cal.offset[2] = (maxData.z + minData.z) / 2;
 
-        cal.gainX = 1.0f;
-        cal.gainY = static_cast<float>(maxData.y - minData.y) / static_cast<float>(maxData.x - minData.x);
-        cal.gainZ = static_cast<float>(maxData.z - minData.z) / static_cast<float>(maxData.x - minData.x);
-        setCalibrationData(&cal);
+        cal.gain[0] = 1.0f;
+        cal.gain[1] = static_cast<float>(maxData.y - minData.y) / static_cast<float>(maxData.x - minData.x);
+        cal.gain[2] = static_cast<float>(maxData.z - minData.z) / static_cast<float>(maxData.x - minData.x);
+        setCalibration(&cal);
         ULOG_INFO("Compas calibration done");
-    }
-
-    void getAvrData(MagData *data)
-    {
-        float32_t temp[3]{0};
-        for (auto d : collectedData)
-        {
-            temp[0] += d.x;
-            temp[1] += d.y;
-            temp[2] += d.z;
-        }
-
-        arm_scale_f32(temp, 1.0f / AVR_SAMPLES_COUNT, temp, 3);
-
-        data->x = temp[0];
-        data->y = temp[1];
-        data->z = temp[2];
     }
 
     bool getGauss(float *xyz)
     {
         MagData data;
-        getAvrData(&data);
+        getAvrRawData(&data);
 
         constexpr float QMC5883_16BIT_SENSITIVITY = 12000.0f;
 
@@ -225,7 +226,7 @@ namespace Magneto
     float getHeading()
     {
         MagData data;
-        getAvrData(&data);
+        getAvrRawDataWithCal(&data);
 
         float32_t heading;
         heading = atan2(data.y, data.x); // This shitty version of CMSIS-DSP doesn't have atan2f
@@ -234,19 +235,6 @@ namespace Magneto
 
         arm_scale_f32(&heading, RAD_TO_DEG, &heading, 1);
         return heading;
-    }
-
-    void readSensor()
-    {
-        if (!dataReady())
-            return;
-
-        // A shift register would be useful here
-        for (size_t i = 0; i < AVR_SAMPLES_COUNT - 1; i++)
-        {
-            collectedData[i] = collectedData[i + 1];
-        }
-        readRawDataWithCal(&collectedData[AVR_SAMPLES_COUNT - 1]);
     }
 
     bool begin(Mode m, DataRate odr, Range rng, OverSample osr)
@@ -263,7 +251,7 @@ namespace Magneto
         uint8_t cfgData = (osr << 6) | (rng << 4) | (odr << 2) | m;
         writeRegister(QMC5883_REG_CONFIG1, &cfgData);
 
-        getCalibrationData(&calibration); // Load calibration data
+        getCalibration(&calibration); // Load calibration data
 
         auto startTime = millis();
         uint8_t cfgRead;

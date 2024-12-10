@@ -31,32 +31,28 @@ namespace Magneto
         OVERSAMPLE_64,
     };
 
-    struct MagData{
+    struct MagData
+    {
         int16_t x;
         int16_t y;
         int16_t z;
     };
 
-    struct CalibrationData
+    struct Calibration
     {
-        int16_t offsetX;
-        int16_t offsetY;
-        int16_t offsetZ;
-        float gainX;
-        float gainY;
-        float gainZ;
+        int16_t offset[3]; // Offset for each axis
+        float gain[3];     // Gain for each axis
     };
 
-    bool begin(Mode m = MODE_CONTINUOUS, DataRate odr = DATARATE_100HZ, Range rng = RANGE_2GA, OverSample osr = OVERSAMPLE_512);
-    void setCalibrationData(CalibrationData *calibration);
-    void getCalibrationData(CalibrationData *calibration);
-    // void runCalibration(CalibrationData *calibration);
+    bool begin(Mode m = MODE_CONTINUOUS, DataRate odr = DATARATE_200HZ, Range rng = RANGE_2GA, OverSample osr = OVERSAMPLE_512);
+    void setCalibration(Calibration *calibration);
+    void getCalibration(Calibration *calibration);
+    // void runCalibration(Calibration *calibration);
     void runCalibration(void *params); // Show calibration data on TFT
-    inline String getCalibrationDataString(CalibrationData *calibration)
+    inline String getCalibrationDataString(Calibration *calibration)
     {
-        return "OffsetX: " + String(calibration->offsetX) + " OffsetY: " + String(calibration->offsetY) +
-               " OffsetZ: " + String(calibration->offsetZ) + " GainX: " + String(calibration->gainX) +
-               " GainY: " + String(calibration->gainY) + " GainZ: " + String(calibration->gainZ);
+        return "OffsetX, Y, Z: " + String(calibration->offset[0]) + ", " + String(calibration->offset[1]) + ", " + String(calibration->offset[2]) + "\n" +
+               "GainX, Y, Z: " + String(calibration->gain[0]) + ", " + String(calibration->gain[1]) + ", " + String(calibration->gain[2]);
     }
 
     float getHeading();

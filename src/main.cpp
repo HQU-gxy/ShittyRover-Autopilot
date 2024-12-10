@@ -14,6 +14,11 @@
 TFT_eSPI tft;
 void app_main(void *)
 {
+
+  bool button1Pressed = false;
+  attachInterrupt(BUTTON1_PIN, [&button1Pressed]()
+                  { button1Pressed = true; }, FALLING);
+
   while (1)
   {
     static uint8_t cursor = 0;
@@ -36,17 +41,17 @@ void app_main(void *)
     tft.drawLine(120, 40, 120 + 20 * arm_cos_f32(heading * DEG_TO_RAD), 40 - 20 * arm_sin_f32(heading * DEG_TO_RAD), TFT_WHITE);
     vTaskDelay(50 / portTICK_PERIOD_MS);
 
-    if (Serial2.available())
-      if (Serial2.read() == 'c')
-      {
-        tft.fillScreen(TFT_BLACK);
-        tft.setCursor(0, 0);
-        tft.println("Calibrating the compass");
-        tft.println("Please rotate the device in all directions");
-        Magneto::runCalibration(&tft);
-        tft.println("Calibration done");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-      }
+    if (button1Pressed || (Serial2.available() && Serial2.read() == 'c'))
+    {
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0);
+      tft.println("Calibrating the compass");
+      tft.println("Please rotate the device in all directions");
+      Magneto::runCalibration(&tft);
+      tft.println("Calibration done");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      button1Pressed = false;
+    }
   }
 }
 
@@ -60,7 +65,6 @@ void setup(void)
   ulog_subscribe([](ulog_level_t severity, char *msg)
                  { Serial2.printf("%d [%s]: %s\n", millis(), ulog_level_name(severity), msg); }, ULOG_DEBUG_LEVEL);
 
-
   tft.init();
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK);
@@ -70,13 +74,13 @@ void setup(void)
 
   tft.print("Checking the peripherals: ");
 
-  if (!IMU::begin())
-  {
-    ULOG_ERROR("IMU Initialization Error");
-    tft.printf("IMU Initialization Error");
-    while (1)
-      ;
-  }
+  // if (!IMU::begin())
+  // {
+  //   ULOG_ERROR("IMU Initialization Error");
+  //   tft.printf("IMU Initialization Error");
+  //   while (1)
+  //     ;
+  // }
 
   if (!Magneto::begin())
   {
@@ -86,10 +90,14 @@ void setup(void)
       ;
   }
 
-  pinMode(PB4, OUTPUT);
-  pinMode(PB5, OUTPUT);
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 0);
+
+  pinMode(LED1_PIN, OUTPUT);
+  pinMode(LED2_PIN, OUTPUT);
+  pinMode(BUTTON1_PIN, INPUT);
+  pinMode(BUTTON2_PIN, INPUT);
+  pinMode(BUTTON3_PIN, INPUT);
 
   SensorCollector::begin();
   xTaskCreate(app_main, "Main App", 1024, nullptr, 6, nullptr);
