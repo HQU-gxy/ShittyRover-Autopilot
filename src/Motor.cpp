@@ -70,6 +70,8 @@ void fuckPID(TimerHandle_t shit)
 Motor::Motor(uint8_t in1_pin,
              uint8_t in2_pin,
              uint8_t enable_pin,
+             uint16_t enc_a_pin,
+             uint16_t enc_b_pin,
              TIM_TypeDef *encoder_timer)
     : in1Pin(in1_pin),
       in2Pin(in2_pin),
@@ -80,6 +82,9 @@ Motor::Motor(uint8_t in1_pin,
   pinMode(enablePin, OUTPUT);
 
   encoderTimer = std::make_shared<HardwareTimer>(encoder_timer);
+
+  pinmap_pinout(digitalPinToPinName(enc_a_pin), PinMap_TIM);
+  pinmap_pinout(digitalPinToPinName(enc_b_pin), PinMap_TIM);
 
   LL_TIM_ENCODER_InitTypeDef encInitStruct{
       .EncoderMode = LL_TIM_ENCODERMODE_X4_TI12,
@@ -141,7 +146,6 @@ void Motor::beep(uint16_t f, uint16_t t)
 
   stop();
 }
-
 
 Motor::~Motor()
 {

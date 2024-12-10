@@ -44,15 +44,15 @@ constexpr uint8_t VSENS_PIN = PA1;
 constexpr uint8_t MOTOR1_EN_PIN = PB4;
 constexpr uint8_t MOTOR1_IN1_PIN = PC11;
 constexpr uint8_t MOTOR1_IN2_PIN = PC12;
-constexpr uint8_t MOTOR1_ENC_A_PIN = PC1;
-constexpr uint8_t MOTOR1_ENC_B_PIN = PC0;
+constexpr uint16_t MOTOR1_ENC_A_PIN = PC1; // Pay attention to the AF number
+constexpr uint16_t MOTOR1_ENC_B_PIN = PC0; // Pay attention to the AF number
 #define MOTOR1_ENC_TIMER TIM1
 
 constexpr uint8_t MOTOR2_EN_PIN = PB5;
 constexpr uint8_t MOTOR2_IN1_PIN = PD2;
 constexpr uint8_t MOTOR2_IN2_PIN = PB3;
-constexpr uint8_t MOTOR2_ENC_A_PIN = PC7;
-constexpr uint8_t MOTOR2_ENC_B_PIN = PC6;
+constexpr uint16_t MOTOR2_ENC_A_PIN = PC7; // Pay attention to the AF number
+constexpr uint16_t MOTOR2_ENC_B_PIN = PC6; // Pay attention to the AF number
 #define MOTOR2_ENC_TIMER TIM3
 
 constexpr uint16_t MCPWM_BEEP_DC = 20;

@@ -57,6 +57,8 @@ public:
     Motor(uint8_t in1_pin,
           uint8_t in2_pin,
           uint8_t enable_pin,
+          uint16_t enc_a_pin,
+          uint16_t enc_b_pin,
           TIM_TypeDef *encoder_timer);
 
     ~Motor();
