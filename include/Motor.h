@@ -18,20 +18,19 @@ private:
 
     // bool _direction = 0;                      // 0 for forward, 1 for backward
     int32_t targetFreq = 0;                   // Target encoder frequency in Hz, negative for backward
-    static constexpr uint8_t PID_PERIOD = 50; // Fuck PID every 50ms
+    static constexpr uint8_t PID_PERIOD = 50; // Fuck PID (and measure speed) every 50ms
     static constexpr uint8_t MIN_DUTY = 10;
     static constexpr uint8_t MAX_DUTY = 200;       // To avoid Flying away
-    static constexpr uint8_t MIN_TARGET_FREQ = 15; // Whether to park
+    static constexpr uint8_t MIN_TARGET_FREQ = 30; // Minimum rotating speed, lower speed may result in inaccurate measurement
 
     float PID_KP = 0.3;
     float PID_KI = 0.2;
     float PID_KD = 0.5;
 
-    static constexpr uint32_t SPEED_SCALE = 56;           // Linear speed(m/s) to encoder output frequency(Hz)
-    static constexpr uint32_t MEASURE_SPEED_PERIOD = 100; // Measure speed every 100ms
+    static constexpr uint32_t SPEED_SCALE = 1404 / (PI * 0.125); // Linear speed(m/s) to encoder output frequency(Hz)，1404 pulses/round, 0.125m diameter
+    static constexpr uint32_t MEASURE_SPEED_PERIOD = 100;        // Measure speed every 100ms
 
     volatile int32_t freqMeasured; // Measured encoder freqency, negative for backward
-    uint32_t rolloverCompareCount = 0;
 
     /**
      * @brief Set the duty cycle of the PWM signal
@@ -108,6 +107,16 @@ public:
     }
 
     /**
+     * @brief Get the current speed of the motor
+     *
+     * @return The current speed in m/s
+     */
+    inline float getSpeed()
+    {
+        return freqMeasured / SPEED_SCALE;
+    }
+
+    /**
      * @brief Beep the motor
      *
      * Do not beep while the motor is running
@@ -116,13 +125,6 @@ public:
      * @param t The duration of the beep
      */
     void beep(uint16_t f, uint16_t t);
-
-    /**
-     * @brief Get the current speed of the motor
-     *
-     * Used in an OS timer, don't call it manually
-     */
-    friend void calcSpeed(TimerHandle_t);
 
     /**
      * @brief The PID implementation function

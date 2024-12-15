@@ -5,20 +5,6 @@
 #include "Motor.h"
 #include "config.h"
 
-void calcSpeed(TimerHandle_t shit)
-{
-  auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
-  if (!motor)
-  {
-    ULOG_ERROR("Measure Speed is called without a Motor pointer passed in");
-    return;
-  }
-
-  auto currentCounter = LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance);
-  motor->freqMeasured = currentCounter / Motor::MEASURE_SPEED_PERIOD;
-  LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
-}
-
 void fuckPID(TimerHandle_t shit)
 {
 
@@ -28,6 +14,10 @@ void fuckPID(TimerHandle_t shit)
     ULOG_ERROR("Fuck PID is called without a Motor pointer passed in");
     return;
   }
+
+  auto currentCounter = LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance);
+  motor->freqMeasured = currentCounter / Motor::MEASURE_SPEED_PERIOD;
+  LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
 
   // An incredibly shitty PID implementation
   static int32_t lastError = 0;
@@ -81,29 +71,31 @@ Motor::Motor(uint8_t in1_pin,
   pinMode(in2Pin, OUTPUT);
   pinMode(enablePin, OUTPUT);
 
-  encoderTimer = std::make_shared<HardwareTimer>(encoder_timer);
-
   pinmap_pinout(digitalPinToPinName(enc_a_pin), PinMap_TIM);
   pinmap_pinout(digitalPinToPinName(enc_b_pin), PinMap_TIM);
+
+  encoderTimer = std::make_shared<HardwareTimer>(encoder_timer);
+  encoderTimer->setPreloadEnable(false);
 
   LL_TIM_ENCODER_InitTypeDef encInitStruct{
       .EncoderMode = LL_TIM_ENCODERMODE_X4_TI12,
       .IC1Polarity = LL_TIM_IC_POLARITY_RISING,
       .IC1ActiveInput = LL_TIM_ACTIVEINPUT_DIRECTTI,
       .IC1Prescaler = LL_TIM_ICPSC_DIV4,
-      .IC1Filter = LL_TIM_IC_FILTER_FDIV2_N8,
+      .IC1Filter = LL_TIM_IC_FILTER_FDIV1,
       .IC2Polarity = LL_TIM_IC_POLARITY_RISING,
       .IC2ActiveInput = LL_TIM_ACTIVEINPUT_DIRECTTI,
       .IC2Prescaler = LL_TIM_ICPSC_DIV4,
-      .IC2Filter = LL_TIM_IC_FILTER_FDIV2_N8,
+      .IC2Filter = LL_TIM_IC_FILTER_FDIV1,
   };
   LL_TIM_ENCODER_Init(encoder_timer, &encInitStruct);
-  LL_TIM_CC_EnableChannel(encoder_timer, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH2);
-  LL_TIM_EnableCounter(encoder_timer);
+  LL_TIM_DisableMasterSlaveMode(encoder_timer);
+  LL_TIM_SetTriggerOutput(encoder_timer, LL_TIM_TRGO_RESET);
+  LL_TIM_SetTriggerOutput2(encoder_timer, LL_TIM_TRGO2_RESET);
   LL_TIM_SetCounter(encoder_timer, 0);
+  LL_TIM_EnableCounter(encoder_timer);
 
   auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
-  auto speedMeasurementTimer = xTimerCreate("Speed Measuring", pdMS_TO_TICKS(MEASURE_SPEED_PERIOD), pdTRUE, static_cast<void *>(this), calcSpeed);
 
   xTimerStart(pidTimer, 0);
   ULOG_DEBUG("PID Timer started");
@@ -122,10 +114,10 @@ void Motor::setSpeed(float speed)
   }
 
   targetFreq = speed * SPEED_SCALE;
-  if (targetFreq < MIN_TARGET_FREQ)
-  {
-    targetFreq = 0;
-  }
+  // if (targetFreq < MIN_TARGET_FREQ)
+  // {
+  //   targetFreq = 0;
+  // }
 }
 
 void Motor::beep(uint16_t f, uint16_t t)
