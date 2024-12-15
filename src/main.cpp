@@ -85,15 +85,16 @@ void setup(void)
   ULOG_INFO("I'm fucked up!");
   ULOG_INFO("Checking the peripherals: ");
 
-  tft.print("Checking the peripherals: ");
+  tft.println("Checking the peripherals: ");
 
-  // if (!IMU::begin())
-  // {
-  //   ULOG_ERROR("IMU Initialization Error");
-  //   tft.printf("IMU Initialization Error");
-  //   while (1)
-  //     ;
-  // }
+  if (!IMU::begin())
+  {
+    ULOG_ERROR("IMU Initialization Error");
+    tft.printf("IMU Initialization Error");
+    while (1)
+      ;
+  }
+  tft.println("IMU Initialized");
 
   if (!Magneto::begin())
   {
@@ -102,6 +103,7 @@ void setup(void)
     while (1)
       ;
   }
+  tft.println("Compass Initialized");
 
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 0);
