@@ -20,8 +20,8 @@ void app_main(void *)
   attachInterrupt(BUTTON1_PIN, [&button1Pressed]()
                   { button1Pressed = true; }, FALLING);
 
-  Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_A_PIN, MOTOR1_ENC_B_PIN, MOTOR1_ENC_TIMER);
-  Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_A_PIN, MOTOR2_ENC_B_PIN, MOTOR2_ENC_TIMER);
+  Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_CFG);
+  Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG);
 
   while (1)
   {
@@ -32,13 +32,17 @@ void app_main(void *)
     IMU::IMUData imuData;
     IMU::getData(&imuData);
 
-    auto leftEnc = LL_TIM_GetCounter(MOTOR1_ENC_TIMER);
-    auto rightEnc = LL_TIM_GetCounter(MOTOR2_ENC_TIMER);
+    auto leftSpeed = leftMotor.getSpeed();
+    auto rightSpeed = rightMotor.getSpeed();
+
+    tft.fillScreen(TFT_BLACK);
     tft.setCursor(0, 0);
     tft.print("Left: ");
-    tft.println(leftEnc);
+    tft.println(leftSpeed);
     tft.print("Right: ");
-    tft.println(rightEnc);
+    tft.println(rightSpeed);
+
+    
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // // Show the IMU data on the TFT
@@ -104,9 +108,6 @@ void setup(void)
       ;
   }
   tft.println("Compass Initialized");
-
-  tft.fillScreen(TFT_BLACK);
-  tft.setCursor(0, 0);
 
   pinMode(LED1_PIN, OUTPUT);
   pinMode(LED2_PIN, OUTPUT);

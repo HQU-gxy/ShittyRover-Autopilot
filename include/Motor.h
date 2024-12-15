@@ -6,6 +6,7 @@
 #include <timers.h>
 
 #include "SensorCollector.h"
+#include "config.h"
 
 class Motor
 {
@@ -56,9 +57,7 @@ public:
     Motor(uint8_t in1_pin,
           uint8_t in2_pin,
           uint8_t enable_pin,
-          uint16_t enc_a_pin,
-          uint16_t enc_b_pin,
-          TIM_TypeDef *encoder_timer);
+          EncoderCfg encoder);
 
     ~Motor();
 
@@ -113,7 +112,7 @@ public:
      */
     inline float getSpeed()
     {
-        return freqMeasured / SPEED_SCALE;
+        return static_cast<float>(freqMeasured) / SPEED_SCALE;
     }
 
     /**

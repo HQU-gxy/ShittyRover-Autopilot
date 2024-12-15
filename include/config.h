@@ -40,19 +40,30 @@ constexpr uint8_t UART3_RX_PIN = PB11;
 constexpr uint8_t ISENS_PIN = PA0;
 constexpr uint8_t VSENS_PIN = PA1;
 
-// Motor pins
+struct EncoderCfg
+{
+    TIM_TypeDef *timer;
+    uint16_t encA_Pin; // Pay attention to the AF number
+    uint16_t encB_Pin; // Pay attention to the AF number
+};
+
+// Motor configs
 constexpr uint8_t MOTOR1_EN_PIN = PB4;
 constexpr uint8_t MOTOR1_IN1_PIN = PC11;
 constexpr uint8_t MOTOR1_IN2_PIN = PC12;
-constexpr uint16_t MOTOR1_ENC_A_PIN = PC1; // Pay attention to the AF number
-constexpr uint16_t MOTOR1_ENC_B_PIN = PC0; // Pay attention to the AF number
-#define MOTOR1_ENC_TIMER TIM1
+constexpr EncoderCfg MOTOR1_ENC_CFG = {
+    .timer = TIM1,
+    .encA_Pin = PC1,
+    .encB_Pin = PC0,
+};
 
 constexpr uint8_t MOTOR2_EN_PIN = PB5;
 constexpr uint8_t MOTOR2_IN1_PIN = PD2;
 constexpr uint8_t MOTOR2_IN2_PIN = PB3;
-constexpr uint16_t MOTOR2_ENC_A_PIN = PC7_ALT1; // Pay attention to the AF number
-constexpr uint16_t MOTOR2_ENC_B_PIN = PC6_ALT1; // Pay attention to the AF number
-#define MOTOR2_ENC_TIMER TIM8
+constexpr EncoderCfg MOTOR2_ENC_CFG = {
+    .timer = TIM8,
+    .encA_Pin = PC7_ALT1,
+    .encB_Pin = PC6_ALT1,
+};
 
 constexpr uint16_t MCPWM_BEEP_DC = 20;

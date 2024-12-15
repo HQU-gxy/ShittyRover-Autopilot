@@ -3,7 +3,6 @@
 #include <stm32g431xx.h>
 
 #include "Motor.h"
-#include "config.h"
 
 void fuckPID(TimerHandle_t shit)
 {
@@ -15,8 +14,8 @@ void fuckPID(TimerHandle_t shit)
     return;
   }
 
-  auto currentCounter = LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance);
-  motor->freqMeasured = currentCounter / Motor::MEASURE_SPEED_PERIOD;
+  auto currentCounter = static_cast<int16_t>(LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance) & 0xffff);
+  motor->freqMeasured = currentCounter * (1000 / Motor::MEASURE_SPEED_PERIOD);
   LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
 
   // An incredibly shitty PID implementation
@@ -60,9 +59,7 @@ void fuckPID(TimerHandle_t shit)
 Motor::Motor(uint8_t in1_pin,
              uint8_t in2_pin,
              uint8_t enable_pin,
-             uint16_t enc_a_pin,
-             uint16_t enc_b_pin,
-             TIM_TypeDef *encoder_timer)
+             EncoderCfg encoder)
     : in1Pin(in1_pin),
       in2Pin(in2_pin),
       enablePin(enable_pin)
@@ -71,10 +68,10 @@ Motor::Motor(uint8_t in1_pin,
   pinMode(in2Pin, OUTPUT);
   pinMode(enablePin, OUTPUT);
 
-  pinmap_pinout(digitalPinToPinName(enc_a_pin), PinMap_TIM);
-  pinmap_pinout(digitalPinToPinName(enc_b_pin), PinMap_TIM);
+  pinmap_pinout(digitalPinToPinName(encoder.encA_Pin), PinMap_TIM);
+  pinmap_pinout(digitalPinToPinName(encoder.encB_Pin), PinMap_TIM);
 
-  encoderTimer = std::make_shared<HardwareTimer>(encoder_timer);
+  encoderTimer = std::make_shared<HardwareTimer>(encoder.timer);
   encoderTimer->setPreloadEnable(false);
 
   LL_TIM_ENCODER_InitTypeDef encInitStruct{
@@ -88,12 +85,12 @@ Motor::Motor(uint8_t in1_pin,
       .IC2Prescaler = LL_TIM_ICPSC_DIV4,
       .IC2Filter = LL_TIM_IC_FILTER_FDIV1,
   };
-  LL_TIM_ENCODER_Init(encoder_timer, &encInitStruct);
-  LL_TIM_DisableMasterSlaveMode(encoder_timer);
-  LL_TIM_SetTriggerOutput(encoder_timer, LL_TIM_TRGO_RESET);
-  LL_TIM_SetTriggerOutput2(encoder_timer, LL_TIM_TRGO2_RESET);
-  LL_TIM_SetCounter(encoder_timer, 0);
-  LL_TIM_EnableCounter(encoder_timer);
+  LL_TIM_ENCODER_Init(encoder.timer, &encInitStruct);
+  LL_TIM_DisableMasterSlaveMode(encoder.timer);
+  LL_TIM_SetTriggerOutput(encoder.timer, LL_TIM_TRGO_RESET);
+  LL_TIM_SetTriggerOutput2(encoder.timer, LL_TIM_TRGO2_RESET);
+  LL_TIM_SetCounter(encoder.timer, 0);
+  LL_TIM_EnableCounter(encoder.timer);
 
   auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
 
