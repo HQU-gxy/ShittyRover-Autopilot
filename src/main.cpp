@@ -5,12 +5,46 @@
 #include <STM32FreeRTOS.h>
 #include <CMSIS_DSP.h>
 #include <ulog.h>
+#include <utility>
 
 #include "SensorCollector.h"
 #include "Magnetometer.h"
 #include "IMU.h"
-#include <Motor.h>
+#include "Motor.h"
+#include "UpLink.h"
 #include "config.h"
+
+/**
+ * @brief Convert the linear and angular speed of the car to the speed of the left and right motors
+ *
+ * @param linear Linear speed of the car in m/s
+ * @param angular Angular speed of the car in rad/s
+ *
+ * @return A pair of left and right motor speed in m/s
+ */
+std::pair<float, float> carSpeedToMotorSpeed(float linear, float angular)
+{
+  float leftSpeed = linear - angular * WHEEL_DISTANCE / 2;
+  float rightSpeed = linear + angular * WHEEL_DISTANCE / 2;
+
+  return {leftSpeed, rightSpeed};
+}
+
+/**
+ * @brief Convert the speed of the left and right motors to the linear and angular speed of the car
+ *
+ * @param left Speed of the left motor in m/s
+ * @param right Speed of the right motor in m/s
+ *
+ * @return A pair of linear and angular speed of the car in m/s and rad/s
+ */
+std::pair<float, float> motorSpeedToCarSpeed(float left, float right)
+{
+  float linear = (left + right) / 2;
+  float angular = (right - left) / WHEEL_DISTANCE;
+
+  return {linear, angular};
+}
 
 TFT_eSPI tft;
 void app_main(void *)
@@ -23,10 +57,31 @@ void app_main(void *)
   Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_CFG);
   Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG);
 
-  leftMotor.beep(500, 100);
-  leftMotor.beep(800, 100);
-  rightMotor.beep(500, 100);
-  rightMotor.beep(800, 100);
+#ifndef PID_TUNING
+  std::pair<float, float> upLinkTargetSpeed = {0, 0}; // Linear and angular speed from up-link in m/s and rad/s
+
+  auto getStatus = [&leftMotor, &rightMotor]()
+  {
+    IMU::IMUData imuData;
+    IMU::getData(&imuData);
+    auto [linear, angular] = motorSpeedToCarSpeed(leftMotor.getSpeed(), rightMotor.getSpeed());
+    return {linear, angular, imuData};
+  };
+
+  auto onCommand = [&upLinkTargetSpeed](float linear, float angular)
+  {
+    upLinkTargetSpeed = {linear, angular};
+  };
+
+  UpLink::setGetStatusFunc(getStatus);
+  UpLink::setOnCmdCallback(onCommand);
+  UpLink::begin();
+
+#endif // !PID_TUNING
+
+  auto ledTimer = xTimerCreate("Alive LED", pdMS_TO_TICKS(1000), pdTRUE, nullptr, [](TimerHandle_t)
+                               { digitalToggle(LED1_PIN); });
+  xTimerStart(ledTimer, 0);
 
   while (1)
   {
@@ -137,7 +192,7 @@ void setup(void)
 
   tft.init();
   tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_PINK);
 
   ULOG_INFO("I'm fucked up!");
   ULOG_INFO("Checking the peripherals: ");
@@ -161,6 +216,7 @@ void setup(void)
       ;
   }
   tft.println("Compass Initialized");
+  tft.fillScreen(TFT_CYAN);
 
   pinMode(LED1_PIN, OUTPUT);
   pinMode(LED2_PIN, OUTPUT);

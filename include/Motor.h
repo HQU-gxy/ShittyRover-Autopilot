@@ -116,16 +116,6 @@ public:
     }
 
     /**
-     * @brief Beep the motor
-     *
-     * Do not beep while the motor is running
-     *
-     * @param f The frequency of the beep
-     * @param t The duration of the beep
-     */
-    void beep(uint16_t f, uint16_t t);
-
-    /**
      * @brief The PID implementation function
      *
      * Used in an OS timer, don't call it manually

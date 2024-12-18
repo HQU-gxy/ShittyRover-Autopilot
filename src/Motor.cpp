@@ -43,7 +43,7 @@ void fuckPID(TimerHandle_t shit)
   struct __attribute__((packed))
   {
     uint8_t header = 0x69;
-    uint32_t freq;
+    int32_t freq;
     int32_t error;
     int32_t output;
     char shit[4] = {'s', 'h', 'i', 't'};
@@ -93,7 +93,6 @@ Motor::Motor(uint8_t in1_pin,
   LL_TIM_EnableCounter(encoder.timer);
 
   auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
-
   xTimerStart(pidTimer, 0);
   ULOG_DEBUG("PID Timer started");
 }
@@ -118,25 +117,6 @@ void Motor::setSpeed(float speed)
     else
       targetFreq = MIN_TARGET_FREQ;
   }
-}
-
-void Motor::beep(uint16_t f, uint16_t t)
-{
-  analogWrite(enablePin, MCPWM_BEEP_DC * 255 / 100);
-
-  auto startTime = millis();
-
-  uint16_t halfPeriod = 1e6 / (2 * f); // In μs
-
-  while (millis() - startTime < t)
-  {
-    setDirection(0);
-    delayMicroseconds(halfPeriod);
-    setDirection(1);
-    delayMicroseconds(halfPeriod);
-  }
-
-  stop();
 }
 
 Motor::~Motor()
