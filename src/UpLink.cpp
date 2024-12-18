@@ -1,88 +1,119 @@
-#include <UpLink.h>
+#include <Arduino.h>
+#include <STM32FreeRTOS.h>
+#include <timers.h>
+#include <ulog.h>
 
-/*
-    This module is for communicating with the IO_MCU which controls the motors.
-    Following is the request packet structure:
-        1 byte: 0xAA -> packet head
-        1 byte: 0x00 - 0xFF -> msg type
-        1 byte: 0x01 - 0x20 -> payload size, 32 bytes max
-        ${payload size} bytes: -> payload
-        1 byte: 0x00 - 0xFF -> payload checksum
+#include "UpLink.h"
+#include "config.h"
 
-    Following is the respons packet structure:
-        1 byte: 0x55 -> packet head
-        1 byte: 0x00/0x01 -> NACK/ACK
-        1 byte: 0x00 - 0x20 -> payload size, 32 bytes max
-        ${payload size} bytes: -> payload
-        1 byte: 0x00 - 0xFF -> payload checksum
-*/
-
-namespace RoverIO
+namespace UpLink
 {
+  static bool avail;
 
-    constexpr uint8_t REQUEST_HEAD = 0xaa;
-    constexpr uint8_t RESPONSE_HEAD = 0x55;
+  static onUpLinkCommandCB onCmdCB;
+  static getStatusFunc getStatus;
 
-    uint8_t checksum(const uint8_t *data, uint8_t len)
+  constexpr uint8_t SEND_STATUS_PERIOD = 50; // ms
+  constexpr uint8_t CHECK_CMD_PERIOD = 20;   // ms
+
+  struct __attribute__((packed)) UpLinkCommand
+  {
+    uint8_t header;      // Should be 0x7b
+    float targetLinear;  // Linear speed in m/s
+    float targetAngular; // Angular speed in rad/s
+    uint8_t checksum;
+  };
+
+  void sendStat(TimerHandle_t)
+  {
+    if (!getStatus)
     {
-        uint8_t checksum = 0;
-        for (uint8_t i = 0; i < len; i++)
-        {
-            checksum += data[i];
-        }
-        return checksum;
+      ULOG_WARNING("Get status function not set, will not send status");
+      return;
     }
 
-    void sendPacket(MsgType type, const uint8_t *payload = nullptr, uint8_t payloadLength = 0)
+    auto [currLinear, currAngular, imuData] = getStatus();
+
+    struct __attribute__((packed))
     {
-        char data[payloadLength + 4]{0};
-        data[0] = REQUEST_HEAD;
-        data[1] = static_cast<char>(type);
-        data[2] = payloadLength;
-        if (payload)
-            memcpy(data + 3, payload, payloadLength);
-
-        data[payloadLength + 3] = checksum(payload, payloadLength);
-        Serial3.write(data, payloadLength + 4);
-    }
-
-    bool getResponse(Response *resp)
+      uint8_t header = 0x69;
+      float currentLinear;  // Linear speed in m/s
+      float currentAngular; // Angular speed in rad/s
+      // Accel in m/s^2
+      IMU::IMUData imu;
+      uint8_t checksum;
+    } status{
+        .currentLinear = currLinear,
+        .currentAngular = currAngular,
+        .imu = imuData,
+    };
+    auto bytes = reinterpret_cast<uint8_t *>(&status);
+    uint8_t sum;
+    for (uint8_t i = 0; i < sizeof(status) - 1; i++)
     {
-        auto avail = Serial3.available();
-        if (!avail) // No data received
-            return false;
-
-        if (!(Serial3.read() == RESPONSE_HEAD)) // Invalid head
-            return false;
-
-        resp->ack = Serial3.read();
-        resp->payloadLength = Serial3.read();
-        if (Serial3.readBytes(resp->payload, resp->payloadLength) != resp->payloadLength) // Payload loss
-            return false;
-
-        if (!resp->payloadLength) // No payoload, directly fuck off
-            return true;
-
-        if (checksum(resp->payload, resp->payloadLength) != Serial3.read()) // Checksum error
-            return false;
-
-        return true;
+      sum ^= bytes[i];
     }
+    status.checksum = sum;
+    Serial3.write(bytes, sizeof(status));
+  }
 
-    StatusCode begin()
+  void readCmdTask(void *)
+  {
+    while (1)
     {
-        Serial3.begin(115200);
-        sendPacket(PROBE);
-        Response resp;
-        if(getResponse(&resp))
-            if (resp.ack)
-                return OK;
+      vTaskDelay(pdMS_TO_TICKS(CHECK_CMD_PERIOD));
 
-        return FUCK;
+      if (!Serial3.available())
+        continue;
+
+      if (Serial3.peek() != 0x7b) // The header byte
+      {
+        Serial3.read();
+        continue;
+      }
+
+      char buf[16];
+      Serial3.readBytes(buf, sizeof(UpLinkCommand));
+      auto parsed = reinterpret_cast<const UpLinkCommand *>(buf);
+      uint8_t sum = 0;
+      for (uint8_t i = 0; i < sizeof(UpLinkCommand) - 1; i++)
+      {
+        sum ^= buf[i];
+      }
+
+      if (sum != parsed->checksum)
+      {
+        ULOG_ERROR("UpLink command checksum error: %x", sum);
+        continue;
+      }
+      // targetSpeed.first = parsed->targetLinear;
+      // targetSpeed.second = parsed->targetAngular;
+      if (onCmdCB)
+        onCmdCB(parsed->targetLinear, parsed->targetAngular);
+      else
+        ULOG_WARNING("No callback set for UpLink command");
     }
+  }
 
-    StatusCode setSpeedRPM(uint16_t rpm){
+  void begin()
+  {
+    Serial3.setTx(UART1_TX_PIN);
+    Serial3.setRx(UART1_RX_PIN);
+    Serial3.setTimeout(20);
+    Serial3.begin(115200);
+    auto sendStatTimer = xTimerCreate("Send status", pdMS_TO_TICKS(SEND_STATUS_PERIOD), true, (void *)69, sendStat);
+    xTimerStart(sendStatTimer, 0);
+    xTaskCreate(readCmdTask, "Read command", 1024, nullptr, osPriorityAboveNormal, nullptr);
+  }
 
-        return OK;
-    }
-} // namespace RoverIO
+  void setOnCmdCallback(onUpLinkCommandCB cb)
+  {
+    onCmdCB = cb;
+  }
+
+  void setGetStatusFunc(getStatusFunc func)
+  {
+    getStatus = func;
+  }
+
+} // namespace UpLink

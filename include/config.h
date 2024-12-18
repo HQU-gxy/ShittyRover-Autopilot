@@ -67,3 +67,4 @@ constexpr EncoderCfg MOTOR2_ENC_CFG = {
 };
 
 constexpr uint16_t MCPWM_BEEP_DC = 20;
+constexpr float WHEEL_DISTANCE = 0.35; // The distance between the two wheels in meters

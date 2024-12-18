@@ -1,56 +1,37 @@
 #pragma once
 
-#include <Arduino.h>
+#include <utility>
+#include <functional>
 
-namespace RoverIO
+#include "IMU.h"
+
+namespace UpLink
 {
-    
-    enum StatusCode
-    {
-        OK = 0,
-        FUCK,
-        // To be continued
-    };
+    using onUpLinkCommandCB = std::function<void(const float targetLinear, const float targetAngular)>;
+    // Current linear speed, current angular speed, IMU data
+    using getStatusFunc = std::function<std::tuple<float, float, IMU::IMUData>()>;
 
-    enum MsgType
-    {
-        PROBE = 0,
-        SET_SPEED,
-        GET_SPEED,
-        SET_DIR,
-        GET_DIR,
-        // To be continueds
-    };
+    /**
+     * @brief Initialize the UpLink UART and start the command reading task and status sending timer
+     */
+    void begin();
 
-    enum IfAck
-    {
-        NACK = 0,
-        ACK
-    };
+    /**
+     * @brief Set the callback funtion to call when an uplink command is fucking over
+     *
+     * It's a good idea to set this function before calling `begin()`
+     *
+     * @param
+     */
+    void setOnCmdCallback(onUpLinkCommandCB cb);
 
-    struct Response
-    {
-        bool ack = false;
-        uint8_t payloadLength;
-        uint8_t payload[32];
-    };
+    /**
+     * @brief Set the function to get the current status of the car
+     *
+     * It's a good idea to set this function before calling `begin()`
+     *
+     * @param func The function to get the current status of the car
+     */
+    void setGetStatusFunc(getStatusFunc func);
 
-    struct Request
-    {
-        MsgType type;
-        uint8_t payloadLength;
-        uint8_t payload[32];
-    };
-    
-
-    StatusCode begin();
-
-    StatusCode setSpeedRPM(uint16_t rpm);
-
-    StatusCode getSpeedRPM(uint16_t *rpm);
-
-    StatusCode setDirection(bool reverse);
-
-    StatusCode getDirection(bool *reverse);
-
-} // namespace RoverIO
+} // namespace UpLink
