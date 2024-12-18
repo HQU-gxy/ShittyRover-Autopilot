@@ -1,4 +1,5 @@
 #include <stm32g4xx_hal.h>
+#include <stm32_def.h>
 
 void SystemClock_Config(void)
 {

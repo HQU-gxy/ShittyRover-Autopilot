@@ -23,6 +23,11 @@ void app_main(void *)
   Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_CFG);
   Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG);
 
+  leftMotor.beep(500, 100);
+  leftMotor.beep(800, 100);
+  rightMotor.beep(500, 100);
+  rightMotor.beep(800, 100);
+
   while (1)
   {
 

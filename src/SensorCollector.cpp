@@ -1,7 +1,7 @@
 #include <STM32FreeRTOS.h>
 #include <timers.h>
 #include <ulog.h>
-#include <unordered_map>
+#include <vector>
 
 #include "SensorCollector.h"
 
@@ -9,14 +9,14 @@ namespace SensorCollector
 {
     constexpr uint8_t MAX_SENSOR_COUNT = 10;
     constexpr uint8_t SENSOR_READ_PERIOD = 10; // The period in ms to read the sensors
-    static std::unordered_map<String, callback_function_t> sensorCallbacks(MAX_SENSOR_COUNT);
+    static std::vector<callback_function_t> sensorCallbacks;
     static uint8_t sensorCount = 0;
 
     void collectData(TimerHandle_t)
     {
         for (auto &cb : sensorCallbacks)
         {
-            cb.second();
+            cb();
         }
     }
 
@@ -28,9 +28,14 @@ namespace SensorCollector
 
     void registerSensorCb(String name, callback_function_t readFunc)
     {
+        if (!readFunc)
+        {
+            ULOG_ERROR("Sensor callback function is null");
+            return;
+        }
         if (sensorCount < MAX_SENSOR_COUNT)
         {
-            sensorCallbacks[name] = readFunc;
+            sensorCallbacks.push_back(readFunc);
             sensorCount++;
         }
         else

@@ -111,10 +111,13 @@ void Motor::setSpeed(float speed)
   }
 
   targetFreq = speed * SPEED_SCALE;
-  // if (targetFreq < MIN_TARGET_FREQ)
-  // {
-  //   targetFreq = 0;
-  // }
+  if (targetFreq < MIN_TARGET_FREQ) // Wether to set the motor to stop
+  {
+    if (targetFreq < MIN_TARGET_FREQ / 2)
+      targetFreq = 0;
+    else
+      targetFreq = MIN_TARGET_FREQ;
+  }
 }
 
 void Motor::beep(uint16_t f, uint16_t t)
