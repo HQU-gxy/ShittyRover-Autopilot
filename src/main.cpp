@@ -25,7 +25,49 @@ void app_main(void *)
 
   while (1)
   {
-    static uint8_t cursor = 0;
+
+#ifdef PID_TUNING
+    struct __attribute__((packed)) PIDConfig
+    {
+      uint8_t header;
+      float kp;
+      float ki;
+      float kd;
+      char shit[4];
+    };
+
+    struct __attribute__((packed)) SpeedSet
+    {
+      uint8_t header;
+      float speed;
+      char shit[4];
+    };
+
+    static String inputStr;
+    if (Serial2.available())
+    {
+      char c = Serial2.read();
+      inputStr += c;
+      if (inputStr.endsWith("shit"))
+      {
+        if (inputStr[0] == 0x96)
+        {
+          if (inputStr.length() != sizeof(PIDConfig))
+            continue;
+          auto parsed = reinterpret_cast<const PIDConfig *>(inputStr.c_str());
+          rightMotor.setPID(parsed->kp, parsed->ki, parsed->kd);
+        }
+        else if (inputStr[0] == 0x97)
+        {
+          if (inputStr.length() != sizeof(SpeedSet))
+            continue;
+          auto parsed = reinterpret_cast<const SpeedSet *>(inputStr.c_str());
+          rightMotor.setSpeed(parsed->speed);
+        }
+        inputStr = "";
+      }
+    }
+#else
 
     auto heading = Magneto::getHeading();
 
@@ -42,7 +84,8 @@ void app_main(void *)
     tft.print("Right: ");
     tft.println(rightSpeed);
 
-    
+#endif // PID_TUNING
+
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // // Show the IMU data on the TFT
@@ -79,8 +122,13 @@ void setup(void)
   Serial2.begin(115200);
 
   ulog_init();
+#ifdef PID_TUNING
+  ulog_subscribe([](ulog_level_t severity, char *msg)
+                 { Serial2.printf("%d [%s]: %s\n", millis(), ulog_level_name(severity), msg); }, ULOG_ERROR_LEVEL);
+#else
   ulog_subscribe([](ulog_level_t severity, char *msg)
                  { Serial2.printf("%d [%s]: %s\n", millis(), ulog_level_name(severity), msg); }, ULOG_DEBUG_LEVEL);
+#endif // PID_TUNING
 
   tft.init();
   tft.setRotation(3);
