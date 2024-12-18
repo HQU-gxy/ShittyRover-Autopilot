@@ -1,16 +1,17 @@
-# ShittyRover-Autopilot
+# NooBot-Driver
 
 This is a simple autopilot for the ShittyRover project. It has an IMU and magnetometer for heading and tilt information.  
 It uses a simple PID controller to control the steering and throttle of the rover,
-which is [this repo](https://github.com/redstonee/ShittyRoverIO).  
-There's also an RK3588 board for AI functions, but it's not implemented yet.
+There's also an RK3588 board running ROS2 for AI functions, but it's not implemented yet.
 
 ## Hardware
-* FMU MCU: STM32G431CBU6
-* IO MCU: STM32G030C8T6 (for motor control)
+* MCU: STM32G431BT6
 * IMU: BMI088
 * Magnetometer: QMC5883L
 * Power: 6S LiPo
+* Motors: 2x brushed DC motors with quadrature encoders
+* Screen: ST7735 160x80 TFT
+* A few buttons and LEDs
 
 ## Build the firmware
 
