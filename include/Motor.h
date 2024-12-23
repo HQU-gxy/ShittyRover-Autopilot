@@ -22,14 +22,14 @@ private:
     static constexpr uint8_t PID_PERIOD = 50; // Fuck PID (and measure speed) every 50ms
     static constexpr uint8_t MIN_DUTY = 10;
     static constexpr uint8_t MAX_DUTY = 200;       // To avoid Flying away
-    static constexpr uint8_t MIN_TARGET_FREQ = 30; // Minimum rotating speed, lower speed may result in inaccurate measurement
+    static constexpr uint8_t MIN_TARGET_FREQ = 60; // Minimum rotating speed, lower speed may result in inaccurate measurement
 
-    float PID_KP = 0.3;
-    float PID_KI = 0.2;
-    float PID_KD = 0.5;
+    float PID_KP = 0.006;
+    float PID_KI = 0.02;
+    float PID_KD = 0.02;
 
-    static constexpr uint32_t SPEED_SCALE = 1404 / (PI * 0.125); // Linear speed(m/s) to encoder output frequency(Hz)，1404 pulses/round, 0.125m diameter
-    static constexpr uint32_t MEASURE_SPEED_PERIOD = 100;        // Measure speed every 100ms
+    static constexpr int32_t SPEED_SCALE = 1404 / (PI * 0.125); // Linear speed(m/s) to encoder output frequency(Hz)，1404 pulses/round, 0.125m diameter
+    // static constexpr uint32_t MEASURE_SPEED_PERIOD = 100;        // Measure speed every 100ms
 
     volatile int32_t freqMeasured; // Measured encoder freqency, negative for backward
 
@@ -69,8 +69,8 @@ public:
     inline void setDirection(bool direction)
     {
         // _direction = direction;
-        digitalWrite(in1Pin, direction);
-        digitalWrite(in2Pin, !direction);
+        digitalWrite(in1Pin, !direction);
+        digitalWrite(in2Pin, direction);
     }
 
     /**
