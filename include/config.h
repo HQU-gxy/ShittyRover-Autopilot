@@ -32,7 +32,7 @@ constexpr uint8_t UART1_RX_PIN = PB6;
 // For debugging
 constexpr uint8_t UART2_TX_PIN = PA2;
 constexpr uint8_t UART2_RX_PIN = PA3;
-// For uplink
+// For uplink and tuning
 constexpr uint8_t UART3_TX_PIN = PB10;
 constexpr uint8_t UART3_RX_PIN = PB11;
 
@@ -51,7 +51,7 @@ struct EncoderCfg
 constexpr uint8_t MOTOR1_EN_PIN = PB4;
 constexpr uint8_t MOTOR1_IN1_PIN = PC11;
 constexpr uint8_t MOTOR1_IN2_PIN = PC12;
-constexpr EncoderCfg MOTOR1_ENC_CFG = {
+constexpr EncoderCfg MOTOR2_ENC_CFG = {
     .timer = TIM1,
     .encA_Pin = PC1,
     .encB_Pin = PC0,
@@ -60,7 +60,7 @@ constexpr EncoderCfg MOTOR1_ENC_CFG = {
 constexpr uint8_t MOTOR2_EN_PIN = PB5;
 constexpr uint8_t MOTOR2_IN1_PIN = PD2;
 constexpr uint8_t MOTOR2_IN2_PIN = PB3;
-constexpr EncoderCfg MOTOR2_ENC_CFG = {
+constexpr EncoderCfg MOTOR1_ENC_CFG = {
     .timer = TIM8,
     .encA_Pin = PC7_ALT1,
     .encB_Pin = PC6_ALT1,

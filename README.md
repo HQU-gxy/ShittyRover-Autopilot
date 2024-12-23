@@ -1,6 +1,6 @@
 # NooBot-Driver
 
-This is a simple autopilot for the ShittyRover project. It has an IMU and magnetometer for heading and tilt information.  
+This is a simple autopilot for the NooBot project. It has an IMU and magnetometer for heading and tilt information.  
 It uses a simple PID controller to control the steering and throttle of the rover,
 There's also an RK3588 board running ROS2 for AI functions, but it's not implemented yet.
 
