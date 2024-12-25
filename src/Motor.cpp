@@ -6,7 +6,6 @@
 
 void fuckPID(TimerHandle_t shit)
 {
-
   auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
   if (!motor)
   {
@@ -15,33 +14,28 @@ void fuckPID(TimerHandle_t shit)
   }
 
   auto currentCounter = static_cast<int16_t>(LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance) & 0xffff);
-  motor->freqMeasured = currentCounter * (1000 / motor->PID_PERIOD);
+  motor->freqMeasured = motor->inverse ? (-currentCounter * (1000 / motor->PID_PERIOD))
+                                       : (currentCounter * (1000 / motor->PID_PERIOD));
+
   LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
 
   // An incredibly shitty PID implementation
-  static int32_t lastError = 0;
-  static int32_t lastLastError = 0;
-  static int32_t lastOutput = 0;
 
   int32_t currentError = motor->targetFreq - motor->freqMeasured;
-  int32_t output = lastOutput + motor->PID_KP * (currentError - lastError) +
+  int32_t output = motor->lastOutput + motor->PID_KP * (currentError - motor->lastError) +
                    motor->PID_KI * currentError +
-                   motor->PID_KD * (currentError - 2 * lastError + lastLastError);
+                   motor->PID_KD * (currentError - 2 * motor->lastError + motor->lastLastError);
 
-  if (motor->targetFreq == 0) // Don't stop tooooo suddenly
-    output = 0;
+  if (output < 0)
+    motor->setDirection(1);
   else
-  {
-    if (output < 0)
-      motor->setDirection(1);
-    else
-      motor->setDirection(0);
-  }
+    motor->setDirection(0);
+
   motor->setDuty(output < 0 ? -output : output);
 
-  lastOutput = output;
-  lastError = currentError;
-  lastLastError = lastError;
+  motor->lastOutput = output;
+  motor->lastError = currentError;
+  motor->lastLastError = motor->lastError;
 
 #ifdef PID_TUNING
   struct __attribute__((packed))
@@ -63,10 +57,12 @@ void fuckPID(TimerHandle_t shit)
 Motor::Motor(uint8_t in1_pin,
              uint8_t in2_pin,
              uint8_t enable_pin,
-             EncoderCfg encoder)
+             EncoderCfg encoder,
+             bool inverted)
     : in1Pin(in1_pin),
       in2Pin(in2_pin),
-      enablePin(enable_pin)
+      enablePin(enable_pin),
+      inverse(inverted)
 {
   pinMode(in1Pin, OUTPUT);
   pinMode(in2Pin, OUTPUT);
@@ -96,7 +92,7 @@ Motor::Motor(uint8_t in1_pin,
   LL_TIM_SetCounter(encoder.timer, 0);
   LL_TIM_EnableCounter(encoder.timer);
 
-  static auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
+  auto pidTimer = xTimerCreate("PID", pdMS_TO_TICKS(PID_PERIOD), pdTRUE, static_cast<void *>(this), fuckPID);
   xTimerStart(pidTimer, 0);
   ULOG_DEBUG("PID Timer started");
 }
@@ -104,14 +100,10 @@ Motor::Motor(uint8_t in1_pin,
 void Motor::setSpeed(float speed)
 {
   targetFreq = speed * SPEED_SCALE;
-  Serial2.println(targetFreq);
-
   if (abs(targetFreq) < MIN_TARGET_FREQ / 2)
     targetFreq = 0;
   else if (abs(targetFreq) < MIN_TARGET_FREQ) // Wether to set the motor to stop
     targetFreq = targetFreq > 0 ? MIN_TARGET_FREQ : -MIN_TARGET_FREQ;
-
-  Serial2.println(targetFreq);
 }
 
 Motor::~Motor()

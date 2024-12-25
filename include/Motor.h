@@ -16,8 +16,8 @@ private:
     uint8_t in2Pin;
 
     std::shared_ptr<HardwareTimer> encoderTimer;
+    bool inverse; // Whether the motor is inverted
 
-    // bool _direction = 0;                      // 0 for forward, 1 for backward
     int32_t targetFreq = 0;                   // Target encoder frequency in Hz, negative for backward
     static constexpr uint8_t PID_PERIOD = 50; // Fuck PID (and measure speed) every 50ms
     static constexpr uint8_t MIN_DUTY = 10;
@@ -27,9 +27,11 @@ private:
     float PID_KP = 0.006;
     float PID_KI = 0.02;
     float PID_KD = 0.02;
+    int32_t lastError = 0;
+    int32_t lastLastError = 0;
+    int32_t lastOutput = 0;
 
     static constexpr int32_t SPEED_SCALE = 1404 / (PI * 0.125); // Linear speed(m/s) to encoder output frequency(Hz)，1404 pulses/round, 0.125m diameter
-    // static constexpr uint32_t MEASURE_SPEED_PERIOD = 100;        // Measure speed every 100ms
 
     volatile int32_t freqMeasured; // Measured encoder freqency, negative for backward
 
@@ -43,21 +45,12 @@ private:
         analogWrite(enablePin, duty);
     }
 
-    /**
-     * @brief Get the encoder input frequency
-     *
-     * @return The frequency measured
-     */
-    inline uint32_t getInputFrequency()
-    {
-        return freqMeasured;
-    }
-
 public:
     Motor(uint8_t in1_pin,
           uint8_t in2_pin,
           uint8_t enable_pin,
-          EncoderCfg encoder);
+          EncoderCfg encoder,
+          bool inverted = false);
 
     ~Motor();
 
@@ -68,9 +61,8 @@ public:
      */
     inline void setDirection(bool direction)
     {
-        // _direction = direction;
-        digitalWrite(in1Pin, !direction);
-        digitalWrite(in2Pin, direction);
+        digitalWrite(in1Pin, !direction ^ inverse);
+        digitalWrite(in2Pin, direction ^ inverse);
     }
 
     /**

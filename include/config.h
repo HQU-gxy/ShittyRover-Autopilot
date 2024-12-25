@@ -27,8 +27,8 @@ constexpr float MAGNETIC_DECLINATION = -(4.0 + (38.0 / 60.0)) / (180 / PI);
 
 // UART pins
 // Reserve for future peripherals
-constexpr uint8_t UART1_TX_PIN = PB7;
-constexpr uint8_t UART1_RX_PIN = PB6;
+constexpr uint8_t UART1_TX_PIN = PB6;
+constexpr uint8_t UART1_RX_PIN = PB7;
 // For debugging
 constexpr uint8_t UART2_TX_PIN = PA2;
 constexpr uint8_t UART2_RX_PIN = PA3;
@@ -51,20 +51,25 @@ struct EncoderCfg
 constexpr uint8_t MOTOR1_EN_PIN = PB4;
 constexpr uint8_t MOTOR1_IN1_PIN = PC11;
 constexpr uint8_t MOTOR1_IN2_PIN = PC12;
-constexpr EncoderCfg MOTOR2_ENC_CFG = {
-    .timer = TIM1,
-    .encA_Pin = PC1,
-    .encB_Pin = PC0,
-};
-
-constexpr uint8_t MOTOR2_EN_PIN = PB5;
-constexpr uint8_t MOTOR2_IN1_PIN = PD2;
-constexpr uint8_t MOTOR2_IN2_PIN = PB3;
 constexpr EncoderCfg MOTOR1_ENC_CFG = {
     .timer = TIM8,
     .encA_Pin = PC7_ALT1,
     .encB_Pin = PC6_ALT1,
 };
+constexpr bool MOTOR1_INVERTED = true; // Installed in the opposite direction
+
+constexpr uint8_t MOTOR2_EN_PIN = PB5;
+constexpr uint8_t MOTOR2_IN1_PIN = PD2;
+constexpr uint8_t MOTOR2_IN2_PIN = PB3;
+constexpr EncoderCfg MOTOR2_ENC_CFG = {
+    .timer = TIM1,
+    .encA_Pin = PC1,
+    .encB_Pin = PC0,
+};
+constexpr bool MOTOR2_INVERTED = false;
 
 constexpr uint16_t MCPWM_BEEP_DC = 20;
 constexpr float WHEEL_DISTANCE = 0.35; // The distance between the two wheels in meters
+
+// Optional modules
+#define USE_LORA 1
