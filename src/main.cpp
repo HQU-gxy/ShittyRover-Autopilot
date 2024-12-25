@@ -7,6 +7,7 @@
 #include <ulog.h>
 #include <utility>
 
+#include "LoraLink.h"
 #include "SensorCollector.h"
 #include "Magnetometer.h"
 #include "IMU.h"
@@ -49,57 +50,82 @@ std::pair<float, float> motorSpeedToCarSpeed(float left, float right)
 TFT_eSPI tft;
 void app_main(void *)
 {
+  // SensorCollector::begin();
 
   bool button1Pressed = false;
   attachInterrupt(BUTTON1_PIN, [&button1Pressed]()
                   { button1Pressed = true; }, FALLING);
 
-  Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_CFG);
-  Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG);
+  Motor leftMotor(MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR1_EN_PIN, MOTOR1_ENC_CFG, MOTOR1_INVERTED);
+  Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG, MOTOR2_INVERTED);
 
-  auto heading = Magneto::getHeading();
+#if defined(USE_LORA) && USE_LORA
+  auto onLoraCommand = [&leftMotor, &rightMotor](float linear, float angular)
+  {
+    auto [leftSpeed, rightSpeed] = carSpeedToMotorSpeed(linear, angular);
+    leftMotor.setSpeed(leftSpeed);
+    rightMotor.setSpeed(rightSpeed);
+  };
 
-  IMU::IMUData imuData;
-  IMU::getData(&imuData);
+  auto onLoraLinkLost = [&leftMotor, &rightMotor]()
+  {
+    leftMotor.setSpeed(0);
+    rightMotor.setSpeed(0);
+    ULOG_WARNING("LoraLink connection lost");
+  };
 
-  auto leftSpeed = leftMotor.getSpeed();
-  auto rightSpeed = rightMotor.getSpeed();
+  LoraLink::setOnCommandCallback(onLoraCommand);
+  LoraLink::setOnLinkLostCallback(onLoraLinkLost);
+  LoraLink::begin(Serial1);
+#endif
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setCursor(0, 0);
-  tft.print("Left: ");
-  tft.println(leftSpeed);
-  tft.print("Right: ");
-  tft.println(rightSpeed);
+  while (1)
+  {
+    auto heading = Magneto::getHeading();
 
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+    IMU::IMUData imuData;
+    IMU::getData(&imuData);
 
-  // // Show the IMU data on the TFT
-  // tft.drawPixel(cursor, 40 + imuData.accelX * 2, TFT_RED);
-  // tft.drawPixel(cursor, 40 + imuData.accelY * 2, TFT_GREEN);
-  // tft.drawPixel(cursor, 40 + imuData.accelZ * 2, TFT_CYAN);
-  // cursor = cursor < 80 ? cursor + 1 : 0;
-  // tft.drawFastVLine(cursor, 0, 80, TFT_BLACK);
+    auto leftSpeed = leftMotor.getSpeed();
+    auto rightSpeed = rightMotor.getSpeed();
 
-  // Show the heading on the TFT
-  // tft.fillCircle(120, 40, 20, TFT_BLACK);
-  // tft.drawCircle(120, 40, 20, TFT_ORANGE);
-  // tft.drawLine(120, 40, 120 + 20 * arm_cos_f32(heading * DEG_TO_RAD), 40 - 20 * arm_sin_f32(heading * DEG_TO_RAD), TFT_WHITE);
-  // vTaskDelay(50 / portTICK_PERIOD_MS);
+    tft.fillScreen(TFT_BLACK);
+    tft.setCursor(0, 0);
+    tft.print("Left: ");
+    tft.println(leftSpeed);
+    tft.print("Right: ");
+    tft.println(rightSpeed);
 
-  // if (button1Pressed || (Serial2.available() && Serial2.read() == 'c'))
-  // {
-  //   tft.fillScreen(TFT_BLACK);
-  //   tft.setCursor(0, 0);
-  //   tft.println("Calibrating the compass");
-  //   tft.println("Please rotate the device in all directions");
-  //   Magneto::runCalibration(&tft);
-  //   tft.println("Calibration done");
-  //   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //   button1Pressed = false;
-  // }
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // // Show the IMU data on the TFT
+    // tft.drawPixel(cursor, 40 + imuData.accelX * 2, TFT_RED);
+    // tft.drawPixel(cursor, 40 + imuData.accelY * 2, TFT_GREEN);
+    // tft.drawPixel(cursor, 40 + imuData.accelZ * 2, TFT_CYAN);
+    // cursor = cursor < 80 ? cursor + 1 : 0;
+    // tft.drawFastVLine(cursor, 0, 80, TFT_BLACK);
+
+    // Show the heading on the TFT
+    // tft.fillCircle(120, 40, 20, TFT_BLACK);
+    // tft.drawCircle(120, 40, 20, TFT_ORANGE);
+    // tft.drawLine(120, 40, 120 + 20 * arm_cos_f32(heading * DEG_TO_RAD), 40 - 20 * arm_sin_f32(heading * DEG_TO_RAD), TFT_WHITE);
+    // vTaskDelay(50 / portTICK_PERIOD_MS);
+
+    // if (button1Pressed || (Serial2.available() && Serial2.read() == 'c'))
+    // {
+    //   tft.fillScreen(TFT_BLACK);
+    //   tft.setCursor(0, 0);
+    //   tft.println("Calibrating the compass");
+    //   tft.println("Please rotate the device in all directions");
+    //   Magneto::runCalibration(&tft);
+    //   tft.println("Calibration done");
+    //   vTaskDelay(1000 / portTICK_PERIOD_MS);
+    //   button1Pressed = false;
+    // }
+  }
 }
 
+#ifdef PID_TUNING
 void tunePID(void *)
 {
   Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG);
@@ -152,6 +178,7 @@ void tunePID(void *)
     }
   }
 }
+#endif // PID_TUNING
 
 void setup(void)
 {
@@ -211,11 +238,10 @@ void setup(void)
 
 #else
   // Uplink::begin();
-  SensorCollector::begin();
   xTaskCreate(app_main, "Main App", 1024, nullptr, osPriorityHigh, nullptr);
 #endif // PID_TUNING
 
   vTaskStartScheduler();
 }
 
-void loop() {}
+void loop() { /* Never fuck into this */ }
